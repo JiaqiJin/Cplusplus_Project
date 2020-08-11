@@ -3,167 +3,135 @@
 #include <vector>
 #include <string>
 #include <map>
-
-#include<thread>
-
+#include <list>
+#include <thread>
+#include <mutex>
 using namespace std;
 
-class Tester {
-public:
-	int number;
-	void operator ()() { 
-		cout << "Mythread number " << number << endl; 
-		cout << "Mythread number 1 " << number << endl;
-		cout << "Mythread number 2 " << number << endl;
-		cout << "Mythread number 3 " << number << endl;
-	};
+/*
+Mutex
+lock unlock
+lock_guard template = lock_guard 构造函数里执行了mutex::lock(); 析造函数里执行了 mutex::unlock lock_guard 不灵活
+死锁deadlock = 是俩个锁头也就是俩个互斥量(mutex)才能产生,俩个线程在争夺资源。
+保证 2 mutex 上锁顺序一致就不会死锁。
+mutex1 lock , mutex2 lock
+mutex1 unlock , mutex2 unlock
 
-	Tester(int num) : number(num) { cout << "My tester creation "  << endl; }
-	Tester(const Tester & tester) : number(tester.number) { cout << "My COPY tester creation !" << endl; }
+std::lock_guard<mutex> sbguard(my_mutex,std::adopt_lock); //自动unlock
 
-	~Tester(){ cout << "My  tester creation Destruction ! " << endl; }
+*/
 
-	void sum(int numb) { this->number += numb; }
-	int getNumber() { return number;}
-};
-//Tester test(10);
-void myprint()
+void myprinter(int num)
 {
-	cout << " my thread start " << endl;
-	/*
-	code
-	*/
-	//test.sum(100);
-	cout << " my thread end " << endl;
+	//cout << "my printer thread init, thread number = " << num << endl;
+	//// codes
+	//cout << "my printer thread finish, thread number = " << num << endl;
+	cout << "id is" << std::this_thread::get_id() << "thread vector number is " << endl;
+	return;
 }
 
-//void printer(const int& i, char* mybuffer) 
-void printer(const int& i,const string& mybuffer)
+class A
 {
-	cout << i << endl;
-	cout << mybuffer.c_str() << endl;
-}
-
-class A {
 public:
-	A(int a) : m_i(a) { cout << "[A::A(int a)constructor ]" << this << " thread id = "<< this_thread::get_id() << endl; }
-	A(const A &a) : m_i(a.m_i){ cout << "[A(const A &a)constructor]" << this << 
-		" thread id = " << this_thread::get_id() << endl; }
-	~A() { cout << "[~A()destructor]" << this << " thread id = " << this_thread::get_id() << endl; }
-	int m_i;
-};
-
-
-class B {
-public:
-	B(int a) : m_i(a) { cout << "[B::B(int b)constructor ]" << this << " thread id = " << this_thread::get_id() << endl; }
-	B(const B& a) : m_i(a.m_i) {
-		cout << "[B(const B &b)constructor]" << this <<
-			" thread id = " << this_thread::get_id() << endl;
-	}
-	~B() { cout << "[~B()destructor]" << this << " thread id = " << this_thread::get_id() << endl; }
-
-	void function_thread(int num)
+	 A() = default;
+	~A() = default;
+	//收到的消息入到一个列队的线程。
+	void inMsgReceive()
 	{
-		cout << "[B::B function_thread ]" << this << " thread id = " << this_thread::get_id() << endl;
+		for (int i = 0; i < 10000; i++)
+		{
+			cout << "inMsgReceive, inserting element" << i << endl;
+			{
+				std::lock(my_mutex, my_mutex2);
+
+				std::lock_guard<mutex> sbguard(my_mutex,std::adopt_lock); //自动unlock
+				std::lock_guard<mutex> sbguard2(my_mutex2, std::adopt_lock);
+
+				//my_mutex.lock();
+				myList.push_back(i);
+				//my_mutex.unlock();
+				//my_mutex2.unlock();
+			}
+			//my_mutex.unlock();
+			//.... 执行其他代码
+		}	
+		return;
 	}
 
-	void operator () (int num)
+	bool outMsgLULProc(int& command)
 	{
-		cout << "[ second thread entry ]" << this << " thread id = " << this_thread::get_id() << endl;
+		std::lock_guard<mutex> sbguard(my_mutex);
+		std::lock_guard<mutex> sbguard2(my_mutex2);
+		//my_mutex.lock();
+		if (!myList.empty())
+		{
+			command = myList.front();
+			myList.pop_front();
+			//myvector.push_back(command);
+			//my_mutex.unlock();
+			return true;
+		}
+		//my_mutex.unlock();
+
+		return false;
 	}
 
-	mutable int m_i;
+	//把数据从列队中取出的线程
+	void outMsgReceive()
+	{
+		int command = 0;
+		for (int i = 0; i < 10000; i++)
+		{
+			bool result = outMsgLULProc(command);
+			if(result)
+			{
+				cout << "outMsgReceive, deleting element" << command << endl;
+			}
+			else
+			{
+				cout << "outMsgReceive, empty element" << i << endl;
+			}
+		}
+	}
+
+private:
+	//you can use vector both xd
+	std::list<int> myList;
+	std::mutex my_mutex;
+	std::mutex my_mutex2;
+	std::vector<int> myvector;
 };
-
-
-void printer2(const int& i, const A& pmbuffer)
-{
-	cout << &pmbuffer << endl;
-}
-
-void printerB(A& pmbuffer,B& pmbuffer2)
-{
-	pmbuffer2.m_i = 100;
-	cout << &pmbuffer << " printer thread id A " << this_thread::get_id() << endl;
-	cout << &pmbuffer2 <<" printer thread id B " <<this_thread::get_id()<<endl;
-}
-
-void printerPTR(std::unique_ptr<int>pmbuffer2)
-{	
-	cout << &pmbuffer2 << " printer thread id B " << this_thread::get_id() << endl;
-}
 
 
 /*
-Notes : 多线程都需要独立空间，切换需要消耗本该于程序运行的时间。
-单个进程中，创建多个线程， 每一个线程中的所有线程共享地址空间。
-主线程保持一直运行才能保持子线程运行。
-
-using const ref variable or std::ref in the job creation when passing argument.
-
-unique_ptr parameter need std::move to passing the argument.
-
+Notes :
+List : elements can be inserted and removed just by modifying a few pointers, so that can be quite fast.(contiguo memory)
+Vector use for random element insertion, but deleting random element in vector mid is slow(randow memory)
 */
 int main()
 {
-	int myval = 1;
-	int& myval2 = myval;
-	char buffer[] = "this is a test";
-	//			function , parameters
-	//thread myjob(printer, myval2, buffer); //main函数都执行完了(detach)，系统才用mybuffer去转string-> error
-	//thread myjob(printer, myval2, string(buffer));//static_cast<string>(buffer)
+	/*vector<thread> myhtreads;
+	for (int i = 0; i < 10; i++)
+	{
+		myhtreads.push_back(thread(myprinter,i));
+	}
 
-	cout << "main thread id " << std::this_thread::get_id() << endl;
+	for (auto iter = myhtreads.begin(); iter != myhtreads.end() ; iter++)
+		iter->join();*/
 
-	int myvalA = 12;
-	//Use join !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//thread myjob(printer2, myval, A(myvalA)); //先构造A类别函数，在main函数结束之前，程序先构造临时对象A。(detach)
-	//myjob.join();
-	//myjob.detach();
+	A myobj;
+	std::thread myOutThread(&A::outMsgReceive, std::ref(myobj));
+	std::thread myInThread(&A::inMsgReceive, std::ref(myobj));
+	myInThread.join();
+	myOutThread.join();
 
-	/*A myA(10);
-	B myB(10);
-	// use ref copy to change to ref
-	thread myjob(printerB, std::ref(myA),std::ref(myB));
-	myjob.join();*/
-
-	/*unique_ptr<int> myp(new int(100));
-	thread myjob(printerPTR,std::move(myp));
-	myjob.join();*/
-
-	B myBclass(10);
-	//std::thread mythread(&B::function_thread, myBclass, 10);
-	//std::thread mythread(&B::function_thread, std::ref(myBclass), 10); // &obj == std::Ref
-	//void operator () (int num)
-	std::thread mythread(std::ref(myBclass),10); //没有拷贝函数 B(const B& b)
-
-	mythread.join();
-
-	cout << "Hello kawaii" << endl;
+	//mutex 保护共享数据，把共享数据锁住，其他想操控共享数据的线程必须等待解锁。
+	// 先 lock 操作共享数据,unlock -> 每调用一次lock， 必然调用一次unlock。你忘记unlock lock_guard 替你unlock
 
 
+	cout << "hello kawaii" << endl;
+
+	
 
 	return 0;
 }
-
-//thread myjob(myprint);
-	//thread myjob2(test);
-	//myjob.join();
-	//myjob2.join();
-	//myjob.join(); //主线程阻塞这里等待 子线程 执行完毕， 主线程就继续往下执行。
-	//myjob2.detach(); // 主线程和子线程失去关联，子线程驻留在后台运行。
-	//lambda 
-	/*
-	auto mylambthread = [] {
-		cout << " my thread start " << endl;
-
-		code
-
-		test.sum(100);
-		cout << " my thread end " << endl;
-	};
-
-	thread myjob3(mylambthread);
-	myjob3.join();
-	*/
