@@ -1,137 +1,63 @@
-﻿#include <stdio.h>
-#include <iostream>
-#include <vector>
-#include <string>
-#include <map>
-#include <list>
-#include <thread>
-#include <mutex>
-using namespace std;
+﻿#include "Singleton.h"
 
-/*
-Mutex
-lock unlock
-lock_guard template = lock_guard 构造函数里执行了mutex::lock(); 析造函数里执行了 mutex::unlock lock_guard 不灵活
-死锁deadlock = 是俩个锁头也就是俩个互斥量(mutex)才能产生,俩个线程在争夺资源。
-保证 2 mutex 上锁顺序一致就不会死锁。
-mutex1 lock , mutex2 lock
-mutex1 unlock , mutex2 unlock
+//Singleton::ptr Singleton::m_instance = nullptr;
+Singelton2* Singelton2::instance = NULL;
 
-std::lock_guard<mutex> sbguard(my_mutex,std::adopt_lock); //自动unlock
-
-*/
-
-void myprinter(int num)
-{
-	//cout << "my printer thread init, thread number = " << num << endl;
-	//// codes
-	//cout << "my printer thread finish, thread number = " << num << endl;
-	cout << "id is" << std::this_thread::get_id() << "thread vector number is " << endl;
-	return;
-}
-
-class A
+/*class A : public MySingleton<A>
 {
 public:
-	 A() = default;
+	typedef std::shared_ptr<A> ptr;
+	A() = default;
 	~A() = default;
-	//收到的消息入到一个列队的线程。
-	void inMsgReceive()
+
+	static A::ptr getSingleton();
+	void printer()
 	{
-		for (int i = 0; i < 10000; i++)
-		{
-			cout << "inMsgReceive, inserting element" << i << endl;
-			{
-				std::lock(my_mutex, my_mutex2);
-
-				std::lock_guard<mutex> sbguard(my_mutex,std::adopt_lock); //自动unlock
-				std::lock_guard<mutex> sbguard2(my_mutex2, std::adopt_lock);
-
-				//my_mutex.lock();
-				myList.push_back(i);
-				//my_mutex.unlock();
-				//my_mutex2.unlock();
-			}
-			//my_mutex.unlock();
-			//.... 执行其他代码
-		}	
-		return;
+		std::cout << "HiHi A" << std::endl;
 	}
-
-	bool outMsgLULProc(int& command)
-	{
-		std::lock_guard<mutex> sbguard(my_mutex);
-		std::lock_guard<mutex> sbguard2(my_mutex2);
-		//my_mutex.lock();
-		if (!myList.empty())
-		{
-			command = myList.front();
-			myList.pop_front();
-			//myvector.push_back(command);
-			//my_mutex.unlock();
-			return true;
-		}
-		//my_mutex.unlock();
-
-		return false;
-	}
-
-	//把数据从列队中取出的线程
-	void outMsgReceive()
-	{
-		int command = 0;
-		for (int i = 0; i < 10000; i++)
-		{
-			bool result = outMsgLULProc(command);
-			if(result)
-			{
-				cout << "outMsgReceive, deleting element" << command << endl;
-			}
-			else
-			{
-				cout << "outMsgReceive, empty element" << i << endl;
-			}
-		}
-	}
-
-private:
-	//you can use vector both xd
-	std::list<int> myList;
-	std::mutex my_mutex;
-	std::mutex my_mutex2;
-	std::vector<int> myvector;
 };
 
+template<> std::shared_ptr<A> MySingleton<A>::m_instance = nullptr;
+A::ptr A::getSingleton()
+{
+	if (m_instance == nullptr)
+	{
+		m_instance = std::make_shared<A>();
+		static GCollerctor g;
+	}
+	return m_instance;
+}
+*/
+void creatingObj()
+{
+	std::cout << "Object Creating" << std::endl;
+	/*Singleton::ptr p1 = Singleton::getSingleton();
+	Singleton::ptr p2 = Singleton::getSingleton();
+
+	p1->test();
+	p2->test();
+	Singleton::getSingleton()->test();*/
+
+	//A a;
+	//a.printer();
+
+	Singelton2* p1 = Singelton2::getInstance();
+	Singelton2* p2 = Singelton2::getInstance();
+	p1->test();
+	p2->test();
+	std::cout << "Object Creating Finish" << std::endl;
+}
 
 /*
-Notes :
-List : elements can be inserted and removed just by modifying a few pointers, so that can be quite fast.(contiguo memory)
-Vector use for random element insertion, but deleting random element in vector mid is slow(randow memory)
+call_once 能够保证函数a()只被调用一次。具备互斥量的能力
+其实once_flag是一个结构，call_once()就是通过标记来决定函数是否执行，调用成功后，就把标记设置为一种已调用状态。
 */
+
 int main()
 {
-	/*vector<thread> myhtreads;
-	for (int i = 0; i < 10; i++)
-	{
-		myhtreads.push_back(thread(myprinter,i));
-	}
-
-	for (auto iter = myhtreads.begin(); iter != myhtreads.end() ; iter++)
-		iter->join();*/
-
-	A myobj;
-	std::thread myOutThread(&A::outMsgReceive, std::ref(myobj));
-	std::thread myInThread(&A::inMsgReceive, std::ref(myobj));
-	myInThread.join();
-	myOutThread.join();
-
-	//mutex 保护共享数据，把共享数据锁住，其他想操控共享数据的线程必须等待解锁。
-	// 先 lock 操作共享数据,unlock -> 每调用一次lock， 必然调用一次unlock。你忘记unlock lock_guard 替你unlock
-
-
-	cout << "hello kawaii" << endl;
-
-	
-
+	std::thread mythread1(creatingObj);
+	std::thread mythread2(creatingObj);
+	mythread1.join();
+	mythread2.join();
 	return 0;
 }
