@@ -19,10 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Multithread\Singleton.h" />
+    <ClCompile Include="Multithread\Source.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Multithread\main.cpp" />
+    <ClInclude Include="Multithread\Helper.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
