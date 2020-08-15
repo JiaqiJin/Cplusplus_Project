@@ -1,137 +1,155 @@
-#include<Windows.h>
+#include <windows.h>
+#include <stdint.h>
 
-#define internal static
-#define local_persist static
-#define global_variable static 
+typedef int8_t int8; // 
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
 
-global_variable bool Running;
-global_variable BITMAPINFO BitmapInfo;
+typedef uint8_t uint8; // unsigned char
+typedef uint16_t uint16; //unsigned short
+typedef uint32_t uint32; //unsigned int
+typedef uint64_t uint64; //long long
+
+#define global_variable static
+#define interval static
+
+global_variable bool Running = true;
+
 global_variable void* BitmapMemory;
-global_variable HBITMAP BitmapHandle;
-global_variable HDC BitmapDeviceContext;
+global_variable BITMAPINFO BitmapInfo;
+global_variable int BytesPerPixel = 4;
+global_variable int BitmapWidth;
+global_variable int BitmapHeight;
 
-/*
-Bit map class inherit from Image class, procides methods for loading and saving vector images,
-creating and manipulating raster images.
-*/
-internal void Win32ResizeDIBSection(int width ,int height)
-{
-   
-    if (BitmapHandle)
-    {
-        DeleteObject(BitmapHandle);
+void RenderWeirdGradeint(int XOffset, int YOffset) {
+    uint8* Row = (uint8*)BitmapMemory;
+
+    for (int Y = 0; Y < BitmapHeight; Y++) {
+        uint32* Pixel = (uint32*)Row;
+
+        for (int X = 0; X < BitmapWidth; X++) {
+            uint8 Blue = X + XOffset;
+            uint8 Green = Y + YOffset;
+            // 0xXXRRGGBB
+            *Pixel++ = (Green << 8) | Blue;
+        }
+
+        Row = Row + BitmapWidth * BytesPerPixel;
     }
-    if(!BitmapDeviceContext)
-    {
-        BitmapDeviceContext = CreateCompatibleDC(0);
+}
+
+void Win32ResizeDIBSection(int Width, int Height) {
+    if (BitmapMemory) {
+        VirtualFree(BitmapMemory, 0, MEM_RELEASE);
     }
+
+    BitmapWidth = Width;
+    BitmapHeight = Height;
 
     BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader);
-    BitmapInfo.bmiHeader.biWidth = width;
-    BitmapInfo.bmiHeader.biHeight = height;
+    BitmapInfo.bmiHeader.biWidth = Width;
+    BitmapInfo.bmiHeader.biHeight = -Height;
     BitmapInfo.bmiHeader.biPlanes = 1;
-    BitmapInfo.bmiHeader.biBitCount = 32;
+    BitmapInfo.bmiHeader.biBitCount = BytesPerPixel * 8;
     BitmapInfo.bmiHeader.biCompression = BI_RGB;
 
-    BitmapHandle = CreateDIBSection(
-        BitmapDeviceContext, &BitmapInfo,
-        DIB_RGB_COLORS,
-        &BitmapMemory,
-        0, 0);
-    //ReleaseDC(0, BitmapDeviceContext);
+    int BitmapSize = Width * Height * BytesPerPixel;
+
+    BitmapMemory = VirtualAlloc(0, BitmapSize, MEM_COMMIT, PAGE_READWRITE);
 }
 
-internal void Win32UpdateWindow(HDC DeveiceContex,int X, int Y, int Width, int Height)
-{
-    StretchDIBits(DeveiceContex,
-        X,Y,Width,Height,
-        X,Y,Width,Height,
+void Win32UpdateWindow(HDC DeviceContext,RECT* WindowRect, int X, int Y, int Width, int Height) {
+    int WindowWidth = WindowRect->right - WindowRect->left;
+    int WindowHeight = WindowRect->bottom - WindowRect->top;
+    StretchDIBits(
+        DeviceContext,
+        0, 0, BitmapWidth, BitmapHeight,
+        0, 0, WindowWidth, WindowHeight,
         BitmapMemory,
         &BitmapInfo,
-        DIB_RGB_COLORS, SRCCOPY);
+        DIB_RGB_COLORS,
+        SRCCOPY
+    );
 }
 
-LRESULT CALLBACK
-Win32MainWindowCallback(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    LRESULT result = 0;
-    switch (message) {
+LRESULT CALLBACK Win32MainWindowCallback(
+    HWND Window,
+    UINT Message,
+    WPARAM WParam,
+    LPARAM LParam
+) {
+    LRESULT Result = 0;
+    switch (Message) {
+    case WM_ACTIVATEAPP:
+    {
+        OutputDebugStringA("WM_ACTIVATEAPP\n");
+    } break;
 
-    case WM_SIZE: {
+    case WM_CLOSE:
+    {
+        Running = false;
+        OutputDebugStringA("WM_CLOSE\n");
+    } break;
+
+    case WM_DESTROY:
+    {
+        OutputDebugStringA("WM_DESTROY\n");
+    } break;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT PaintStruct = {};
+        HDC DeviceContext = BeginPaint(Window, &PaintStruct);
+        int X = PaintStruct.rcPaint.left;
+        int Y = PaintStruct.rcPaint.top;
+        int Width = PaintStruct.rcPaint.right - PaintStruct.rcPaint.left;
+        int Height = PaintStruct.rcPaint.bottom - PaintStruct.rcPaint.top;
         RECT ClientRect;
-        GetClientRect(window, &ClientRect);
-        int Height = ClientRect.bottom - ClientRect.top;
+        GetClientRect(Window, &ClientRect);
+        Win32UpdateWindow(DeviceContext, &ClientRect, X, Y, Width, Height);
+        EndPaint(Window, &PaintStruct);
+    } break;
+
+    case WM_SIZE:
+    {
+        RECT ClientRect;
+        GetClientRect(Window, &ClientRect);
         int Width = ClientRect.right - ClientRect.left;
-        Win32ResizeDIBSection(Width,Height);
+        int Height = ClientRect.bottom - ClientRect.top;
+        Win32ResizeDIBSection(Width, Height);
         //OutputDebugStringA("WM_SIZE\n");
     } break;
 
-    case WM_SETCURSOR: {
-        
-    } break;
-
-    case WM_ACTIVATEAPP: {
-        //OutputDebugStringA("WM_ACTIVATEAPP\n");
-    } break;
-
-    case WM_CLOSE: {
-        Running = false;
-        //OutputDebugStringA("WM_CLOSE\n");
-    } break;
-
-    case WM_DESTROY: {
-        Running = false;
-        //DestroyWindow(window);
-        //OutputDebugStringA("WM_DESTROY\n");
-    } break;
-
-    case WM_SYSKEYUP:
-    case WM_SYSKEYDOWN:
-    case WM_KEYUP:
-    case WM_KEYDOWN: {
-        /*Assert(!"no keyboard message here")*/
-    } break;
-
-    case WM_PAINT: {
-        PAINTSTRUCT Paint = {};
-          HDC deviceContext = BeginPaint(window, &Paint);
-          int x = Paint.rcPaint.left;
-          int y = Paint.rcPaint.top;
-          int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
-          int Width = Paint.rcPaint.right - Paint.rcPaint.left;
-          //global_variable DWORD Operation = WHITENESS;
-          //PatBlt(deviceContext, x, y, Width, Height, WHITENESS);
-          Win32UpdateWindow(deviceContext, x, y, Width, Height);
-          EndPaint(window, &Paint);
-    } break;
-
-    default: {
-        result = DefWindowProcA(window, message, wParam, lParam);
+    default:
+    {
+        Result = DefWindowProc(Window, Message, WParam, LParam);
     } break;
     }
 
-    return result;
+    return Result;
 }
 
 int CALLBACK WinMain(
-    HINSTANCE hInstance,
-    HINSTANCE hPrevInstance,
-    LPSTR     lpCmdLine,
-    int       nShowCmd
-)
-{
+    HINSTANCE Instance,
+    HINSTANCE PrevInstance,
+    LPSTR     CmdLine,
+    int       ShowCmd
+) {
     WNDCLASS WindowClass = {};
+
+    // TODO: Check if we need these
     WindowClass.style = CS_HREDRAW | CS_VREDRAW;
+
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
-    WindowClass.hInstance = hInstance;
-    WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
+    WindowClass.hInstance = Instance;
     WindowClass.lpszClassName = (LPCWSTR)"KawaiiWindowClass";
 
     if (RegisterClass(&WindowClass)) {
-        HWND window = CreateWindowEx(
+        HWND Window = CreateWindowEx(
             0,
-            (LPCWSTR)WindowClass.lpszClassName,
-            (LPCWSTR)"Kawaii desune",
+            (LPCWSTR)"KawaiiWindowClass",
+            (LPCWSTR)"Kawaii Desune",
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
@@ -139,35 +157,42 @@ int CALLBACK WinMain(
             CW_USEDEFAULT,
             0,
             0,
-            hInstance,
-            0);
+            Instance,
+            0
+        );
 
-        if (window)
-        {
-            Running = true;
-            while(Running)
-            {
-                MSG Message;
-                BOOL MessageResult = GetMessage(&Message, 0, 0, 0);
-                if (MessageResult > 0)
-                {
+        if (Window) {
+            int XOffset = 0;
+            int YOffset = 0;
+
+            while (Running) {
+                MSG Message = {};
+
+                while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE)) {
                     TranslateMessage(&Message);
-                    DispatchMessageA(&Message);
+                    DispatchMessage(&Message);
                 }
-                else
-                {
-                    break;
-                }
+
+                RenderWeirdGradeint(XOffset, YOffset);
+                HDC DeviceContext = GetDC(Window);
+                RECT ClientRect;
+                GetClientRect(Window, &ClientRect);
+                int WindowWidth = ClientRect.right - ClientRect.left;
+                int WindowHeight = ClientRect.bottom - ClientRect.top;
+                Win32UpdateWindow(DeviceContext, &ClientRect, 0, 0, WindowWidth, WindowHeight);
+                ReleaseDC(Window, DeviceContext);
+
+                XOffset++;
+                YOffset += 2;
             }
         }
-        else
-        {
-            //TODO Logging
+        else {
+            // TODO: Logging
         }
     }
-    else
-    {
-        //logging
+    else {
+        // TDOO: Logging
     }
+
     return 0;
 }
