@@ -3,6 +3,7 @@
 #include <xinput.h>
 #include <dsound.h>
 #include <math.h>
+#include<stdio.h>
 
 typedef int8_t int8;
 typedef int16_t int16;
@@ -381,6 +382,9 @@ WinMain(
 {
     Win32LoadXInput();
 
+    LARGE_INTEGER CounterPerSecond;
+    QueryPerformanceFrequency(&CounterPerSecond);
+
     WNDCLASS WindowClass = {};
 
     // TODO: Check if we need these
@@ -389,6 +393,8 @@ WinMain(
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
     WindowClass.lpszClassName = L"KawaiiDesuneWindowClass";
+
+    Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
 
     if (RegisterClass(&WindowClass)) 
     {
@@ -423,10 +429,13 @@ WinMain(
             Win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.BufferSize);
             GlobalSoundBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
-            Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
+            LARGE_INTEGER LastCounter;
+            uint64 LastCycleCounter = __rdtsc();
+            QueryPerformanceCounter(&LastCounter);
 
             while (GlobalRunning) 
             {
+              
                 MSG Message = {};
 
                 while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE)) 
@@ -495,13 +504,26 @@ WinMain(
 
                 HDC DeviceContext = GetDC(Window);
                 win32_window_dimension Dimension = Win32GetWindowDimension(Window);
-                Win32UpdateWindow(
-                    DeviceContext,
-                    Dimension.Width,
-                    Dimension.Height,
-                    &GlobalBackBuffer
-                );
+                Win32UpdateWindow(DeviceContext, Dimension.Width, Dimension.Height, &GlobalBackBuffer);
                 ReleaseDC(Window, DeviceContext);
+
+                uint64 CurrentCycleCounter = __rdtsc();
+                LARGE_INTEGER CurrentCounter;
+                QueryPerformanceCounter(&CurrentCounter);
+
+                int64 CounterElapsed = CurrentCounter.QuadPart - LastCounter.QuadPart;
+                uint64 CycleElapsed = CurrentCycleCounter - LastCycleCounter;
+
+                real32 MSPerFrame = 1000.0f * (real32)CounterElapsed / (real32)CounterPerSecond.QuadPart;
+                real32 FPS = (real32)CounterPerSecond.QuadPart / (real32)CounterElapsed;
+                real32 MCPF = (real32)CycleElapsed / (1000.0f * 1000.0f);
+
+                char Buffer[256];
+                sprintf_s(Buffer, "ms/f: %.2f,  fps: %.2f,  mc/f: %.2f\n", MSPerFrame, FPS, MCPF);
+                OutputDebugStringA(Buffer);
+
+                LastCounter = CurrentCounter;
+                LastCycleCounter = CurrentCycleCounter;
             }
         }
         else 
