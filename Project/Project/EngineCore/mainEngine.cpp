@@ -5,24 +5,9 @@
 #include <math.h>
 #include<stdio.h>
 
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-typedef int32 bool32;
-typedef float real32;
-typedef double real64;
+#include "handmade.cpp"
 
-#define Pi32 3.14159265359
-
-#define global_variable static
-#define internal static
-
-struct win32_offscreen_buffer 
+struct win32_offscreen_buffer
 {
     void* Memory;
     BITMAPINFO Info;
@@ -31,13 +16,13 @@ struct win32_offscreen_buffer
     int Height;
 };
 
-struct win32_window_dimension 
+struct win32_window_dimension
 {
     int Width;
     int Height;
 };
 
-struct win32_sound_output 
+struct win32_sound_output
 {
     int32 SamplesPerSecond;
     int32 BytesPerSample;
@@ -79,22 +64,22 @@ global_variable int GlobalYOffset;
 global_variable LPDIRECTSOUNDBUFFER GlobalSoundBuffer;
 
 internal void
-Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize) 
+Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize)
 {
     HMODULE Library = LoadLibraryA("dsound.dll");
-    if (Library) 
+    if (Library)
     {
         direct_sound_create* DirectSoundCreate = (direct_sound_create*)GetProcAddress(Library, "DirectSoundCreate");
 
         LPDIRECTSOUND DirectSound;
 
-        if (SUCCEEDED(DirectSoundCreate(0, &DirectSound, 0))) 
+        if (SUCCEEDED(DirectSoundCreate(0, &DirectSound, 0)))
         {
-            if (SUCCEEDED(DirectSound->SetCooperativeLevel(Window, DSSCL_PRIORITY))) 
+            if (SUCCEEDED(DirectSound->SetCooperativeLevel(Window, DSSCL_PRIORITY)))
             {
                 OutputDebugStringA("Set cooperative level ok\n");
             }
-            else 
+            else
             {
                 // TODO: logging
             }
@@ -148,7 +133,7 @@ Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize)
 }
 
 internal void
-Win32FillSoundBuffer(win32_sound_output* SoundOutput, DWORD LockOffset, DWORD BytesToLock) 
+Win32FillSoundBuffer(win32_sound_output* SoundOutput, DWORD LockOffset, DWORD BytesToLock)
 {
     void* Region1;
     DWORD Region1Size;
@@ -161,11 +146,11 @@ Win32FillSoundBuffer(win32_sound_output* SoundOutput, DWORD LockOffset, DWORD By
         &Region1, &Region1Size,
         &Region2, &Region2Size,
         0
-    ))) 
+    )))
     {
         int16* SampleOut = (int16*)Region1;
 
-        for (int i = 0; i < Region1Size / SoundOutput->BytesPerSample; i++) 
+        for (int i = 0; i < Region1Size / SoundOutput->BytesPerSample; i++)
         {
             real32 t = 2.0f * Pi32 * ((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
             real32 SineValue = sinf(SoundOutput->tSine);
@@ -178,7 +163,7 @@ Win32FillSoundBuffer(win32_sound_output* SoundOutput, DWORD LockOffset, DWORD By
 
         SampleOut = (int16*)Region2;
 
-        for (int i = 0; i < Region2Size / SoundOutput->BytesPerSample; i++) 
+        for (int i = 0; i < Region2Size / SoundOutput->BytesPerSample; i++)
         {
             real32 t = 2.0f * Pi32 * ((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
             real32 SineValue = sinf(SoundOutput->tSine);
@@ -194,7 +179,7 @@ Win32FillSoundBuffer(win32_sound_output* SoundOutput, DWORD LockOffset, DWORD By
 }
 
 internal void
-Win32LoadXInput() 
+Win32LoadXInput()
 {
     HMODULE Library = LoadLibraryA("xinput1_4.dll");
     if (Library) {
@@ -204,7 +189,7 @@ Win32LoadXInput()
 }
 
 internal win32_window_dimension
-Win32GetWindowDimension(HWND Window) 
+Win32GetWindowDimension(HWND Window)
 {
     win32_window_dimension Result;
     RECT ClientRect;
@@ -215,26 +200,7 @@ Win32GetWindowDimension(HWND Window)
 }
 
 internal void
-RenderWeirdGradeint(win32_offscreen_buffer* Buffer, int XOffset, int YOffset) 
-{
-    uint8* Row = (uint8*)Buffer->Memory;
-
-    for (int Y = 0; Y < Buffer->Height; Y++) {
-        uint32* Pixel = (uint32*)Row;
-
-        for (int X = 0; X < Buffer->Width; X++) {
-            uint8 Blue = X + XOffset;
-            uint8 Green = Y + YOffset;
-            // 0xXXRRGGBB
-            *Pixel++ = (Green << 8) | Blue;
-        }
-
-        Row = Row + Buffer->Width * Buffer->BytesPerPixel;
-    }
-}
-
-internal void
-Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) 
+Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height)
 {
     if (Buffer->Memory) {
         VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
@@ -261,7 +227,7 @@ Win32UpdateWindow(
     HDC DeviceContext,
     int WindowWidth,
     int WindowHeight,
-    win32_offscreen_buffer* Buffer) 
+    win32_offscreen_buffer* Buffer)
 {
     StretchDIBits(
         DeviceContext,
@@ -289,13 +255,13 @@ Win32MainWindowCallback(
         OutputDebugStringA("WM_ACTIVATEAPP\n");
     } break;
 
-    case WM_CLOSE: 
+    case WM_CLOSE:
     {
         GlobalRunning = false;
         OutputDebugStringA("WM_CLOSE\n");
     } break;
 
-    case WM_DESTROY: 
+    case WM_DESTROY:
     {
         OutputDebugStringA("WM_DESTROY\n");
     } break;
@@ -303,7 +269,7 @@ Win32MainWindowCallback(
     case WM_SYSKEYUP:
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
-    case WM_KEYDOWN: 
+    case WM_KEYDOWN:
     {
         uint32 VKCode = WParam;
         bool32 WasDown = LParam & (1 << 30);
@@ -311,33 +277,33 @@ Win32MainWindowCallback(
 
         int diff = 20;
 
-        switch (VKCode) 
+        switch (VKCode)
         {
-        case VK_F4: 
+        case VK_F4:
         {
             bool32 IsAltDown = LParam & (1 << 29);
-            if (IsAltDown) 
+            if (IsAltDown)
             {
                 GlobalRunning = false;
             }
         } break;
 
-        case VK_UP: 
+        case VK_UP:
         {
             GlobalYOffset += diff;
         } break;
 
-        case VK_DOWN: 
+        case VK_DOWN:
         {
             GlobalYOffset -= diff;
         } break;
 
-        case VK_LEFT: 
+        case VK_LEFT:
         {
             GlobalXOffset -= diff;
         } break;
 
-        case VK_RIGHT: 
+        case VK_RIGHT:
         {
             GlobalXOffset += diff;
         } break;
@@ -378,7 +344,7 @@ WinMain(
     HINSTANCE Instance,
     HINSTANCE PrevInstance,
     LPSTR     CmdLine,
-    int       ShowCmd) 
+    int       ShowCmd)
 {
     Win32LoadXInput();
 
@@ -396,7 +362,7 @@ WinMain(
 
     Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
 
-    if (RegisterClass(&WindowClass)) 
+    if (RegisterClass(&WindowClass))
     {
         HWND Window = CreateWindowEx(
             0,
@@ -413,7 +379,7 @@ WinMain(
             0
         );
 
-        if (Window) 
+        if (Window)
         {
             win32_sound_output SoundOutput = {};
             SoundOutput.SamplesPerSecond = 48000;
@@ -433,22 +399,22 @@ WinMain(
             uint64 LastCycleCounter = __rdtsc();
             QueryPerformanceCounter(&LastCounter);
 
-            while (GlobalRunning) 
+            while (GlobalRunning)
             {
-              
+
                 MSG Message = {};
 
-                while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE)) 
+                while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
                 {
                     TranslateMessage(&Message);
                     DispatchMessage(&Message);
                 }
 
-                for (int i = 0; i < XUSER_MAX_COUNT; i++) 
+                for (int i = 0; i < XUSER_MAX_COUNT; i++)
                 {
                     XINPUT_STATE state;
                     ZeroMemory(&state, sizeof(XINPUT_STATE));
-                    if (XInputGetState(i, &state) == ERROR_SUCCESS) 
+                    if (XInputGetState(i, &state) == ERROR_SUCCESS)
                     {
                         XINPUT_GAMEPAD* Pad = &state.Gamepad;
 
@@ -468,14 +434,20 @@ WinMain(
                         int16 StickX = Pad->sThumbLX;
                         int16 StickY = Pad->sThumbLY;
                     }
-                    else 
+                    else
                     {
                         // Controller is not connected
                     }
                 }
 
-                RenderWeirdGradeint(&GlobalBackBuffer, GlobalXOffset, GlobalYOffset);
-                if (GlobalYOffset <= 1000 && GlobalYOffset >= -1000) 
+                game_offscreen_buffer Buffer = {};
+                Buffer.Memory = GlobalBackBuffer.Memory;
+                Buffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
+                Buffer.Width = GlobalBackBuffer.Width;
+                Buffer.Height = GlobalBackBuffer.Height;
+                GameUpdateAndRender(&Buffer, GlobalXOffset, GlobalYOffset);
+
+                if (GlobalYOffset <= 1000 && GlobalYOffset >= -1000)
                 {
                     int Tmp = (int)(((real32)GlobalYOffset / 1000) * 256) + 512;
                     SoundOutput.ToneHz = Tmp;
@@ -484,17 +456,17 @@ WinMain(
 
                 DWORD PlayCursor;
                 DWORD WriteCursor;
-                if (SUCCEEDED(GlobalSoundBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor))) 
+                if (SUCCEEDED(GlobalSoundBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor)))
                 {
                     DWORD LockOffset = SoundOutput.RunningSampleIndex * SoundOutput.BytesPerSample % SoundOutput.BufferSize;
                     DWORD BytesToLock;
                     DWORD TargetCursor = (PlayCursor + SoundOutput.LatencySampleCount * SoundOutput.BytesPerSample) % SoundOutput.BufferSize;
 
-                    if (LockOffset > TargetCursor) 
+                    if (LockOffset > TargetCursor)
                     {
                         BytesToLock = SoundOutput.BufferSize - LockOffset + TargetCursor;
                     }
-                    else 
+                    else
                     {
                         BytesToLock = TargetCursor - LockOffset;
                     }
@@ -518,20 +490,20 @@ WinMain(
                 real32 FPS = (real32)CounterPerSecond.QuadPart / (real32)CounterElapsed;
                 real32 MCPF = (real32)CycleElapsed / (1000.0f * 1000.0f);
 
-                char Buffer[256];
-                sprintf_s(Buffer, "ms/f: %.2f,  fps: %.2f,  mc/f: %.2f\n", MSPerFrame, FPS, MCPF);
-                OutputDebugStringA(Buffer);
+                char OutputBuffer[256];
+                sprintf_s(OutputBuffer, "ms/f: %.2f,  fps: %.2f,  mc/f: %.2f\n", MSPerFrame, FPS, MCPF);
+                OutputDebugStringA(OutputBuffer);
 
                 LastCounter = CurrentCounter;
                 LastCycleCounter = CurrentCycleCounter;
             }
         }
-        else 
+        else
         {
             // TODO: Logging
         }
     }
-    else 
+    else
     {
         // TDOO: Logging
     }

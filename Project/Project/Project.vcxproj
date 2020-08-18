@@ -19,7 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="EngineCore\handmade.cpp" />
     <ClCompile Include="EngineCore\mainEngine.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="EngineCore\handmade.h" />
+    <ClInclude Include="EngineCore\handmade_platform.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
