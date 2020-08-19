@@ -18,6 +18,8 @@ typedef double real64;
 #define local_persist static
 #define internal static
 
+#define ArrayCount(arr) (sizeof((arr)) / (sizeof((arr)[0])))
+
 #define Pi32 3.14159265359
 
 #endif
