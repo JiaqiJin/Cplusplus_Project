@@ -42,14 +42,35 @@ GameOutputSound(game_sound_output_buffer* SoundBuffer, int ToneHz)
 }
 
 internal void
-GameUpdateAndRender(game_input* Input, game_offscreen_buffer* Buffer,
+GameUpdateAndRender(game_memory* Memory, game_input* Input, game_offscreen_buffer* Buffer,
     game_sound_output_buffer* SoundBuffer)
 {
-    local_persist int BlueOffset = 0;
-    local_persist int GreenOffset = 0;
-    local_persist int ToneHz = 256;
+    Assert(sizeof(game_state) <= Memory->PermanentStorageSize)
 
+    game_state* GameState = (game_state *)Memory->PermanentStorage;
 
-    GameOutputSound(SoundBuffer, ToneHz);
-    RenderWeirdGradeint(Buffer, BlueOffset, GreenOffset);
+    if (!Memory->IsInitialized)
+    {
+        GameState->ToneHz = 256;    
+
+        Memory->IsInitialized = true;
+    }
+
+    GameOutputSound(SoundBuffer, GameState->ToneHz);
+    RenderWeirdGradeint(Buffer, GameState->BlueOffset, GameState->GreenOffset);
+}
+
+internal game_state* GameStartUp()
+{
+    game_state* GameState = new game_state;
+    if (GameState)
+    {
+        GameState->ToneHz = 256;
+    }
+    return GameState;
+}
+
+internal void GameShutdow(game_state* GameState)
+{
+    delete GameState;
 }

@@ -1,6 +1,17 @@
 #ifndef HANDMADE_H
 #define HANDMADE_H
 
+#ifdef HANDMADE_SLOW
+#define Assert(expression) if(!(expression)) { *(int*) 0 = 0; }
+#else
+#define Assert(expression)
+#endif
+
+#define Kilobytes(number) ((number) * 1024)
+#define Megabytes(number) (Kilobytes(number) * 1024)
+#define Gigabytes(number) (Megabytes(number) * 1024)
+#define Terabytes(number) (Gigabytes(number) * 1024)
+
 #include "handmade_platform.h"
 
 struct game_offscreen_buffer 
@@ -65,9 +76,30 @@ struct game_input {
 	game_controller_input Controllers[4];
 };
 
+struct game_state 
+{
+	int GreenOffset;
+	int BlueOffset;
+	int ToneHz;
+};
+
+struct game_memory {
+	bool32 IsInitialized;
+
+	uint64 PermanentStorageSize;
+	void* PermanentStorage; // required to be cleared to zero
+
+	uint64 TransientStorageSize;
+	void* TransientStorage;
+};
+
+struct game_clocks
+{
+	real32 SecondElapsed;
+};
 
 internal void
-GameUpdateAndRender(game_input* Input, game_offscreen_buffer* Buffer,
+GameUpdateAndRender(game_memory* GameMemory, game_input* Input, game_offscreen_buffer* Buffer,
 	game_sound_output_buffer* SoundBuffer);
 
 #endif
