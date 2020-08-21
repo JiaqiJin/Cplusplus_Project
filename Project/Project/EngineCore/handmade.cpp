@@ -1,5 +1,6 @@
 #include "handmade.h"
 #include<math.h>
+
 internal void
 RenderWeirdGradeint(game_offscreen_buffer* Buffer, int XOffset, int YOffset) 
 {
@@ -51,6 +52,7 @@ GameUpdateAndRender(game_memory* Memory, game_input* Input, game_offscreen_buffe
 
     if (!Memory->IsInitialized)
     {
+       
         GameState->ToneHz = 256;    
 
         Memory->IsInitialized = true;

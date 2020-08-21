@@ -14,6 +14,17 @@
 
 #include "handmade_platform.h"
 
+struct debug_read_file_result {
+	uint32 Size;
+	void* Memory;
+};
+
+#ifdef HANDMADE_INTERNAL
+internal debug_read_file_result DebugPlatformReadFile(const char* FileName);
+internal bool32 DebugPlatformWriteFile(char* FileName, void* Memory, uint32 Size);
+internal void DebugPlatformFreeFileMemory(void* Memory);
+#endif
+
 struct game_offscreen_buffer 
 {
 	void* Memory;

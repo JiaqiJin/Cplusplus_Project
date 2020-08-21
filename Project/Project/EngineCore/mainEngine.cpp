@@ -49,6 +49,105 @@ global_variable bool GlobalRunning = true;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 
+internal debug_read_file_result
+DebugPlatformReadFile(const char* FileName)
+{
+    debug_read_file_result Result = {};
+    HANDLE FileHandle = CreateFileA(
+        FileName,
+        GENERIC_READ,
+        0,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        0
+    );
+
+    LARGE_INTEGER FileSize;
+
+    if (FileHandle != INVALID_HANDLE_VALUE)
+    {
+        if (GetFileSizeEx(FileHandle, &FileSize))
+        {
+            uint32 FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
+            void* Memory = VirtualAlloc(0, FileSize32, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            if (Memory) 
+            {
+                DWORD BytesRead;
+                if (ReadFile(FileHandle, Memory, FileSize32, &BytesRead, 0) && BytesRead == FileSize32) 
+                {
+                    Result.Size = FileSize32;
+                    Result.Memory = Memory;
+                }
+                else 
+                {
+                    // TODO: logging
+                    DebugPlatformFreeFileMemory(Result.Memory);
+                }
+            }
+            else 
+            {
+                // TODO: logging
+            }
+        }
+        else 
+        {
+            // TODO: logging
+        }
+
+        CloseHandle(FileHandle);
+    }
+    else 
+    {
+        // TODO: logging
+    }
+
+    return Result;
+}
+
+internal
+bool32 DebugPlatformWriteFile(char* FileName, void* Memory, uint32 Size)
+{
+    bool32 Result = false;
+    HANDLE File = CreateFileA(
+        FileName,
+        GENERIC_WRITE,
+        0,
+        0,
+        CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        0);
+
+    if (File != INVALID_HANDLE_VALUE) 
+    {
+        DWORD BytesWritten;
+        if (WriteFile(File, Memory, Size, &BytesWritten, 0)) {
+            Result = BytesWritten == Size;
+        }
+        else 
+        {
+            // TODO: logging
+        }
+
+        CloseHandle(File);
+    }
+    else 
+    {
+        // TODO: logging
+    }
+
+    return Result;
+}
+
+internal
+void DebugPlatformFreeFileMemory(void* Memory)
+{
+    if(Memory)
+    {
+        VirtualFree(Memory, 0, MEM_RELEASE);
+    }
+}
+
 internal void
 Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize)
 {

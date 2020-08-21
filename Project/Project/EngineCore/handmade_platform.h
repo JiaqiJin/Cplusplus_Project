@@ -22,4 +22,12 @@ typedef double real64;
 
 #define Pi32 3.14159265359
 
+inline uint32
+SafeTruncateUInt64(uint64 Value)
+{
+	Assert(Value <= 0xFFFFFFFF);
+	uint32 Result = (uint32)Value;
+	return Result;
+}
+
 #endif
