@@ -49,7 +49,7 @@ global_variable bool GlobalRunning = true;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 
-internal debug_read_file_result
+debug_read_file_result
 DebugPlatformReadFile(const char* FileName)
 {
     debug_read_file_result Result = {};
@@ -105,8 +105,8 @@ DebugPlatformReadFile(const char* FileName)
     return Result;
 }
 
-internal
-bool32 DebugPlatformWriteFile(char* FileName, void* Memory, uint32 Size)
+
+bool32 DebugPlatformWriteFile(const char* FileName, void* Memory, uint32 Size)
 {
     bool32 Result = false;
     HANDLE File = CreateFileA(
@@ -122,7 +122,7 @@ bool32 DebugPlatformWriteFile(char* FileName, void* Memory, uint32 Size)
     {
         DWORD BytesWritten;
         if (WriteFile(File, Memory, Size, &BytesWritten, 0)) {
-            Result = BytesWritten == Size;
+            Result = (BytesWritten == Size);
         }
         else 
         {
@@ -139,7 +139,7 @@ bool32 DebugPlatformWriteFile(char* FileName, void* Memory, uint32 Size)
     return Result;
 }
 
-internal
+
 void DebugPlatformFreeFileMemory(void* Memory)
 {
     if(Memory)

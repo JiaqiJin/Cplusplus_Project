@@ -52,7 +52,11 @@ GameUpdateAndRender(game_memory* Memory, game_input* Input, game_offscreen_buffe
 
     if (!Memory->IsInitialized)
     {
-       
+        /*const char* filemane = __FILE__;
+        debug_read_file_result thisMemory = DebugPlatformReadFile(filemane);
+        DebugPlatformWriteFile("E:\VisualStudio\Cplusplus_Project\Project\Project\EngineCore\test\test.out", 
+            thisMemory.Memory,thisMemory.Size);
+        DebugPlatformFreeFileMemory(thisMemory.Memory);*/
         GameState->ToneHz = 256;    
 
         Memory->IsInitialized = true;
