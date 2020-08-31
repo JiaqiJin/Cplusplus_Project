@@ -1,6 +1,7 @@
 #ifndef KAWAII_CORE_H
 #define KAWAII_CORE_H
 
+#include<ostream>
 #include <math.h>
 
 #include "precision.h"
