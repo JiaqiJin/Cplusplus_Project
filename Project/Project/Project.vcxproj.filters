@@ -29,5 +29,8 @@
     <ClInclude Include="EngineCore\handmade_platform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="EngineCore\win32_handmade.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

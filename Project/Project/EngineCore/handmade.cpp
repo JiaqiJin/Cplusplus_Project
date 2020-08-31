@@ -2,7 +2,7 @@
 #include<math.h>
 
 internal void
-RenderWeirdGradeint(game_offscreen_buffer* Buffer, int XOffset, int YOffset) 
+RenderWeirdGradient(game_offscreen_buffer* Buffer, int BlueOffset, int GreenOffset)
 {
     uint8* Row = (uint8*)Buffer->Memory;
 
@@ -12,8 +12,8 @@ RenderWeirdGradeint(game_offscreen_buffer* Buffer, int XOffset, int YOffset)
 
         for (int X = 0; X < Buffer->Width; X++) 
         {
-            uint8 Blue = X + XOffset;
-            uint8 Green = Y + YOffset;
+            uint8_t Blue = (uint8_t)(X + BlueOffset);
+            uint8_t Green = (uint8_t)(Y + GreenOffset);
             // 0xXXRRGGBB
             *Pixel++ = (Green << 8) | Blue;
         }
@@ -63,7 +63,7 @@ GameUpdateAndRender(game_memory* Memory, game_input* Input, game_offscreen_buffe
     }
 
     GameOutputSound(SoundBuffer, GameState->ToneHz);
-    RenderWeirdGradeint(Buffer, GameState->BlueOffset, GameState->GreenOffset);
+    RenderWeirdGradient(Buffer, GameState->BlueOffset, GameState->GreenOffset);
 }
 
 internal game_state* GameStartUp()

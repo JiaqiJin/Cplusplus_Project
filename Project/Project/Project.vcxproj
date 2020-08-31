@@ -25,6 +25,7 @@
   <ItemGroup>
     <ClInclude Include="EngineCore\handmade.h" />
     <ClInclude Include="EngineCore\handmade_platform.h" />
+    <ClInclude Include="EngineCore\win32_handmade.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

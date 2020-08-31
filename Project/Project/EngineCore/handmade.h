@@ -33,16 +33,6 @@ struct game_offscreen_buffer
 	int Height;
 };
 
-struct win32_sound_output
-{
-	int32 SamplesPerSecond;
-	uint32 RunningSampleIndex;
-	int WavePeriod;
-	int32 BytesPerSample;
-	int32 SecondaryBufferSize;
-	int32 LatencySampleCount;
-	real32 tSine;
-};
 
 struct game_sound_output_buffer
 {

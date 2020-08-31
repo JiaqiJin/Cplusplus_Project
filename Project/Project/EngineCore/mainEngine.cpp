@@ -7,21 +7,7 @@
 #include<malloc.h>
 #include "handmade.h"
 #include "handmade.cpp"
-
-struct win32_offscreen_buffer
-{
-    void* Memory;
-    BITMAPINFO Info;
-    int Pitch;
-    int Width;
-    int Height;
-};
-
-struct win32_window_dimension
-{
-    int Width;
-    int Height;
-};
+#include "win32_handmade.h"
 
 // XInputGetState
 #define XINPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
@@ -360,6 +346,95 @@ Win32UpdateWindow(
     );
 }
 
+internal void
+Win32ProcessKeyboardMessage(game_button_state* ButtonState, bool IsDown)
+{
+    ButtonState->IsEndedDown = IsDown;
+    ButtonState->HalfTransitionCount++;
+}
+
+internal void
+Win32ProcessPendingMessages(game_controller_input* KeyboardController)
+{
+    MSG Message;
+    while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
+    {
+        switch (Message.message)
+        {
+        case WM_QUIT:
+        {
+            GlobalRunning = false;
+        } break;
+
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        {
+            uint32_t VKCode = (uint32_t)Message.wParam;
+            bool WasDown = ((Message.lParam & (1 << 30)) != 0);
+            bool IsDown = ((Message.lParam & (1 << 31)) == 0);
+            if (WasDown != IsDown)
+            {
+                switch (VKCode) {
+                case 'W':
+                {
+                } break;
+                case 'A':
+                {
+                } break;
+                case 'S':
+                {
+                } break;
+
+                case 'D':
+                {
+                } break;
+                case 'Q':
+                {
+                    Win32ProcessKeyboardMessage(&KeyboardController->LeftShoulder, IsDown);
+                } break;
+                case 'E':
+                {
+                    Win32ProcessKeyboardMessage(&KeyboardController->RightShoulder, IsDown);
+                } break;
+                case VK_UP:
+                {
+                    Win32ProcessKeyboardMessage(&KeyboardController->Up, IsDown);
+                } break;
+                case VK_DOWN:
+                {
+                    Win32ProcessKeyboardMessage(&KeyboardController->Down, IsDown);
+                } break;
+                case VK_LEFT:
+                {
+                    Win32ProcessKeyboardMessage(&KeyboardController->Left, IsDown);
+                } break;
+                case VK_RIGHT:
+                {
+                    Win32ProcessKeyboardMessage(&KeyboardController->Right, IsDown);
+                } break;
+                case VK_ESCAPE:
+                {
+                    GlobalRunning = false;
+                } break;
+                case VK_SPACE:
+                {
+                } break;
+                }
+            }
+        } break;
+
+        default:
+        {
+            TranslateMessage(&Message);
+            DispatchMessage(&Message);
+        } break;
+        }
+    }
+}
+
+
 internal LRESULT CALLBACK
 Win32MainWindowCallback(
     HWND Window,
@@ -370,65 +445,19 @@ Win32MainWindowCallback(
     LRESULT Result = 0;
     switch (Message)
     {
-    case WM_ACTIVATEAPP:
+    case WM_DESTROY:
     {
-        OutputDebugStringA("WM_ACTIVATEAPP\n");
+        GlobalRunning = false;
     } break;
 
     case WM_CLOSE:
     {
         GlobalRunning = false;
-        OutputDebugStringA("WM_CLOSE\n");
     } break;
 
-    case WM_DESTROY:
+    case WM_ACTIVATEAPP:
     {
-        OutputDebugStringA("WM_DESTROY\n");
-    } break;
-
-    case WM_SYSKEYUP:
-    case WM_SYSKEYDOWN:
-    case WM_KEYUP:
-    case WM_KEYDOWN:
-    {
-        uint32 VKCode = WParam;
-        bool32 WasDown = LParam & (1 << 30);
-        bool32 IsDown = LParam & (1 << 31);
-
-        int diff = 20;
-
-        switch (VKCode)
-        {
-        case VK_F4:
-        {
-            bool32 IsAltDown = LParam & (1 << 29);
-            if (IsAltDown)
-            {
-                GlobalRunning = false;
-            }
-        } break;
-
-        case VK_UP:
-        {
-
-        } break;
-
-        case VK_DOWN:
-        {
-
-        } break;
-
-        case VK_LEFT:
-        {
-
-        } break;
-
-        case VK_RIGHT:
-        {
-
-        } break;
-        }
-
+        //OutputDebugStringA("ACTIVATEAPP\n");
     } break;
 
     case WM_PAINT:
@@ -444,12 +473,6 @@ Win32MainWindowCallback(
         );
         EndPaint(Window, &PaintStruct);
     } break;
-
-    case WM_SIZE:
-    {
-        OutputDebugStringA("WM_SIZE\n");
-    } break;
-
     default:
     {
         Result = DefWindowProcA(Window, Message, WParam, LParam);
@@ -508,9 +531,6 @@ WinMain(
             SoundOutput.SecondaryBufferSize = SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample;
             SoundOutput.RunningSampleIndex = 0;
 
-            LARGE_INTEGER LastCounter;
-            uint64 LastCycleCounter = __rdtsc();
-            QueryPerformanceCounter(&LastCounter);
             //Poor with Virtual Alloc
             int16* Samples = (int16*)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, 
                                                    MEM_RESERVE| MEM_COMMIT, PAGE_READWRITE);
@@ -523,9 +543,10 @@ WinMain(
 #else
             LPVOID BaseAddress = 0;
 #endif
+            uint64 TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
             GameMemory.PermanentStorage = VirtualAlloc(
                 BaseAddress,
-                GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize,
+                (size_t)TotalSize,
                 MEM_COMMIT | MEM_RESERVE,
                 PAGE_READWRITE
             );
@@ -538,19 +559,21 @@ WinMain(
                 Win32ClearSoundBuffer(&SoundOutput);
                 GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
+                LARGE_INTEGER LastCounter;
+                QueryPerformanceCounter(&LastCounter);
+                uint64 LastCycleCounter = __rdtsc();
+
                 game_input Input[2] = {};
                 game_input* OldInput = &Input[0];
                 game_input* NewInput = &Input[1];
 
                 while (GlobalRunning)
                 {
-                    MSG Message = {};
+                    //MSG Message = {};
+                    game_controller_input* KeyboardController = &NewInput->Controllers[0];
+                    *KeyboardController = {};
 
-                    while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
-                    {
-                        TranslateMessage(&Message);
-                        DispatchMessage(&Message);
-                    }
+                    Win32ProcessPendingMessages(KeyboardController);
 
                     int MaxControllerCount = XUSER_MAX_COUNT;
                     if (MaxControllerCount > ArrayCount(NewInput->Controllers))
