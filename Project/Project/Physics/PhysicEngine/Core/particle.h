@@ -67,6 +67,7 @@ namespace Kawaii
 		bool hasFiniteMass() const;
 
 	private:
+
 	};
 }
 

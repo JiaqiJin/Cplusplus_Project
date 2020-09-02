@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "Core/core.h"
+#include "KawaiiDesune.h"
 using namespace Kawaii;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -47,6 +48,11 @@ int main()
 
     Vector3 v3(1.0, 1.0, 1.0);
     std::cout << v3 << std::endl;
+
+    Particle a, b;
+    ParticleForceRegistry registery;
+    ParticleSpring psA(&a, 1.0f, 2.0f);
+    registery.add(&a, &psA);
 
     // render loop
     // -----------

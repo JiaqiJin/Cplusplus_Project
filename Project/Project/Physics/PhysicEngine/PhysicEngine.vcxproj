@@ -88,7 +88,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GLEW_STATIC;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>E:\VisualStudio\PhysicEngine\Dependencies\glfw-3.3.2.bin.WIN64\include;E:\VisualStudio\PhysicEngine\Dependencies\glew-2.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\VisualStudio\PhysicEngine\PhysicEngine\Core;E:\VisualStudio\PhysicEngine\Dependencies\glfw-3.3.2.bin.WIN64\include;E:\VisualStudio\PhysicEngine\Dependencies\glew-2.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -119,7 +119,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GLEW_STATIC;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>E:\VisualStudio\PhysicEngine\Dependencies\glfw-3.3.2.bin.WIN64\include;E:\VisualStudio\PhysicEngine\Dependencies\glew-2.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\VisualStudio\PhysicEngine\PhysicEngine\Core;E:\VisualStudio\PhysicEngine\Dependencies\glfw-3.3.2.bin.WIN64\include;E:\VisualStudio\PhysicEngine\Dependencies\glew-2.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,11 +145,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Core\particle.cpp" />
+    <ClCompile Include="Core\pfgen.cpp" />
+    <ClCompile Include="Core\random.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\Demo\fireworks.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\core.h" />
+    <ClInclude Include="Core\KawaiiDesune.h" />
+    <ClInclude Include="Core\particle.h" />
+    <ClInclude Include="Core\pfgen.h" />
     <ClInclude Include="Core\precision.h" />
+    <ClInclude Include="Core\random.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

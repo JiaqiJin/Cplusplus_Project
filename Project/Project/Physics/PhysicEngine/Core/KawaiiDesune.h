@@ -5,3 +5,4 @@
 #include "particle.h"
 #include "core.h"
 #include "random.h"
+#include "pfgen.h"
