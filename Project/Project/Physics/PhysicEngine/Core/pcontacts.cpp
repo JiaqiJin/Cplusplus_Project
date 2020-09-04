@@ -86,3 +86,48 @@ void ParticleContact::resolveVelocity(real duration)
 			impulsePerIMass * -particle[1]->getInverseMass());
 	}
 }
+
+ParticleContactResolver::ParticleContactResolver(unsigned iterations)
+	: iterations(iterations) {}
+
+void ParticleContactResolver::setIterations(unsigned iterations)
+{
+	ParticleContactResolver::iterations = iterations;
+}
+
+/*
+1- calculate the separating velocity of each contact, keep the lowest value(most negative).
+2- If lowest separating velocity >= 0, finish.
+3- Process cllision response algorithm
+4- If more iteration, return step 1
+*/
+void ParticleContactResolver::resolveContacts(ParticleContact* contactArray,
+	unsigned numContacts, real duration)
+{
+	unsigned i;
+	iterationsUsed = 0;
+	while (iterationsUsed < iterations)
+	{
+		// Find the contact with the largest closing velocity;
+		real max = REAL_MAX;
+		unsigned maxIndex = numContacts;
+		for (i = 0; i < numContacts; i++)
+		{
+			real sepVel = contactArray[i].calculateSeparatingVelocity();
+			if (sepVel < max && (sepVel < 0 || contactArray[i].penetration > 0))
+			{
+				max = sepVel;
+				maxIndex = i;
+			}
+		}
+		if (maxIndex == numContacts) break;
+		// Resolve this contact
+		contactArray[maxIndex].resolve(duration);
+
+		/*
+		Need adding interpenetration code here.
+		*/
+
+		iterationsUsed++;
+	}
+}

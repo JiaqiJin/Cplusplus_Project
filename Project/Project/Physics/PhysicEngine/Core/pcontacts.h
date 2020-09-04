@@ -5,6 +5,8 @@
 
 namespace Kawaii
 {
+	class ParticleContactResolver;
+
 	/*
 	A contact represent 2 obj in contact. 
 	Resolving acontact removes their interpenetration, and applies impulse to keep them apart.
@@ -14,6 +16,7 @@ namespace Kawaii
 	*/
 	class ParticleContact
 	{
+		friend ParticleContactResolver;
 	public:
 		/*Hold the particle that are involved in the contact*/
 		Particle* particle[2];
@@ -21,6 +24,8 @@ namespace Kawaii
 		real restitution;
 		/*Hold the direction of the contact in the world*/
 		Vector3 contactNormal;
+		/* Holds the depth of penetration at the contact */
+		real penetration;
 
 	protected:
 		/* Handle the impulse calculation for this impulsion*/
@@ -32,6 +37,37 @@ namespace Kawaii
 		/* Handles the impulse calculations for this collision.*/
 		void resolveVelocity(real duration);
 	};
+
+	/*
+	The contact solution routine for particle contact.
+	*/
+	class ParticleContactResolver
+	{
+	protected:
+		/*Hold the number of iteration*/
+		unsigned iterations;
+		/*recording the actural number of iterations use*/
+		unsigned iterationsUsed;
+
+	public:
+		ParticleContactResolver(unsigned iterations);
+
+		/*set number of iteration*/
+		void setIterations(unsigned iterations);
+
+		/*Resolves a set of particle contacts for both penetration and velocity.*/
+		void resolveContacts(ParticleContact* contactArray, unsigned numContacts, real duration);
+	};
+
+	class ParticleContactGenerator
+	{
+	public:
+		/*
+		* Fill the giving contact structure with the generated contact.
+		*/
+		virtual unsigned addContact(ParticleContact* contact, unsigned limit) const = 0;
+	};
+
 }
 
 #endif
