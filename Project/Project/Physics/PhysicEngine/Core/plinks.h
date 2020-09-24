@@ -6,7 +6,7 @@
 namespace Kawaii
 {
 	/*
-	Links connect 2 particle togetehr, generating a contact if they 
+	Links connect 2 particle together, generating a contact if they 
 	violate the constraints of thei links.
 	*/
 	class ParticleLink : public ParticleContactGenerator

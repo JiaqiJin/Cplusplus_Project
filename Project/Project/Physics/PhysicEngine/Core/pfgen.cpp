@@ -59,7 +59,7 @@ ParticleDrag::ParticleDrag(real k1, real k2)
 {
 
 }
-/*fdrag =-ÿp(k1|ÿp| + k2|ÿp|^2)*/
+/*fdrag =-(^p.)(k1|^p.| + k2|^p.|^2)*/
 void ParticleDrag::updateForce(Particle* particle, real duration)
 {
 	Vector3 force;
@@ -75,11 +75,19 @@ void ParticleDrag::updateForce(Particle* particle, real duration)
 	particle->addForce(force);
 }
 
-/*--------------------Spirng GENERATOR ----------*/
+/*--------------------Spiring GENERATOR ----------*/
 
 ParticleSpring::ParticleSpring(Particle* other, real sc, real rl)
 	: other(other), springConstant(sc), restLength(rl) {}
 
+/*
+f =-k(|d|- l0) d^
+ d = end of the object spring attached.
+ d = Xa - Xb
+ Xa is the position of the end of the spring attached to the object 
+ Xb is the position of the other end of the spring.
+ |d| = magnitude of the distance between the ends of the spring.
+*/
 void ParticleSpring::updateForce(Particle* particle, real duration)
 {
 	// Calculate the vector of the spring
@@ -189,4 +197,67 @@ void ParticleBuoyancy::updateForce(Particle* particle, real duration)
 	force.y = liquidDensity * volume *
 		(depth - maxDepth - waterHeight) / (2 * maxDepth);
 	particle->addForce(force);
+}
+
+/*------------------- Bungee FORCE  ----------*/
+
+ParticleBungee::ParticleBungee(Particle* other, real sc, real rl)
+	: other(other), springConstant(sc), restLength(rl) {}
+
+void ParticleBungee::updateForce(Particle* particle, real duration)
+{
+	// Calculate the vector of the spring
+	Vector3 force;
+	particle->getPosition(&force);
+	force -= other->getPosition();
+
+	// Check if the bungee is compressed
+	real magnitude = force.magnitude();
+	if (magnitude <= restLength) return;
+
+	// Calculate the magnitude of the force
+	magnitude = springConstant * (restLength - magnitude);
+
+	// Calculate the final force and apply it
+	force.normalise();
+	force *= -magnitude;
+	particle->addForce(force);
+}
+
+
+/*------------------- Stiff Spring ----------*/
+ParticleFakeSpring::ParticleFakeSpring(Vector3* anchor, real sc, real d)
+	: anchor(anchor), springConstant(sc), damping(d) {}
+
+/*
+pt = [p0cos(ãt) + c sin(ãt)] e^(-1/2)^dt.
+
+ã = 1/2 sqrt(4k - d^2).
+
+c = (d/2ã) p0 + (1/ã) `p0. 
+
+p = (pt - p0) * 1/t2 - pÿ0
+*/
+void ParticleFakeSpring::updateForce(Particle* particle, real duration)
+{
+	if (!particle->hasFiniteMass()) return;
+
+	// Calculate the relative position of the particle to the anchor
+	Vector3 position;
+	particle->getPosition(&position);
+	position -= *anchor;
+
+	// Calculate the constants and check they are in bounds.
+	real gamma = 0.5 * real_sqrt(4 * springConstant - damping * damping);
+	if (gamma == 0) return;
+	Vector3 c = position * (damping / (2.0f * gamma)) + particle->getVelocity() * (1.0f / gamma);
+
+	// Calculate the target position
+	Vector3 target = position * real_cos(gamma * duration) + c * real_sin(gamma * duration);
+	target *= real_exp(-0.5f * duration * damping);
+
+	// Calculate the resulting acceleration and therefore the force
+	Vector3 accel = (target - position) * ((real)1.0 / (duration * duration)) - particle->getVelocity() * ((real)1.0 / duration);
+	particle->addForce(accel * particle->getMass());
+
 }

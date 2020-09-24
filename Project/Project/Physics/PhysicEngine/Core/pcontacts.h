@@ -11,7 +11,15 @@ namespace Kawaii
 	A contact represent 2 obj in contact. 
 	Resolving acontact removes their interpenetration, and applies impulse to keep them apart.
 	Colliding bodies may also rebound.
-	vs = (`pa - `pb) · n
+	vc(closing velocity) = -(`Pa - `Pb) · (pa- pb) -> (L = ^p[2]).
+
+	`P = velocity of obj before the collision
+	^p = the unit-length vector with direction p(a b...).
+	(pa- pb) = DIrection of the separating velocitt when occur.
+
+	vs (separating velocity) = (`pa - `pb) · n^
+	n^ (contact normal) [0 1 0] = (pa- pb)
+
 	vs` = -c * vs (c = restitution coefficent)
 	*/
 	class ParticleContact

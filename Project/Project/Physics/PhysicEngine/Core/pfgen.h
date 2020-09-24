@@ -48,7 +48,7 @@ namespace Kawaii
 
 	/*
 	A force generator that applies a Spring force
-	f =-k(|d|- l0) d
+	f =-k(|d|- l0) ^d
 	*/
 	class ParticleSpring : public ParticleForceGenerator
 	{
@@ -125,6 +125,51 @@ namespace Kawaii
 		real waterHeight;;
 		/*The density of the liquid, pure water have densitt  1000kg*/
 		real liquidDensity;
+	};
+
+	/*
+	 A force generator that fakes a stiff spring force, and where
+     one end is attached to a fixed point in space.
+	*/
+	class ParticleFakeSpring : public ParticleForceGenerator
+	{
+	public:
+		ParticleFakeSpring(Vector3* anchor, real springConstant, real damping);
+		virtual void updateForce(Particle* particle, real duration);
+	private:
+		/** The location of the anchored end of the spring. */
+		Vector3* anchor;
+		/** Holds the sprint constant. */
+		real springConstant;
+		/** Holds the damping on the oscillation of the spring. */
+		real damping;
+	};
+
+	/*
+	  A force generator that applies a spring force only
+	   when extended.
+	 */
+	class ParticleBungee : public ParticleForceGenerator
+	{
+	public:
+		/** Creates a new bungee with the given parameters. */
+		ParticleBungee(Particle* other,
+			real springConstant, real restLength);
+
+		/** Applies the spring force to the given particle. */
+		virtual void updateForce(Particle* particle, real duration);
+
+	private:
+		/** The particle at the other end of the spring. */
+		Particle* other;
+		/** Holds the sprint constant. */
+		real springConstant;
+		/**
+		 * Holds the length of the bungee at the point it begins to
+		 * generator a force.
+		 */
+		real restLength;
+
 	};
 
 	/*

@@ -1100,7 +1100,6 @@ namespace Kawaii
         static Matrix3 linearInterpolate(const Matrix3& a, const Matrix3& b, real prop);
     };
 
-
 }
 
 #endif

@@ -25,7 +25,9 @@ void ParticleWorld::startFrame()
 		(*p)->clearAccumulator(); // Remove all forces from the accumulator 
 	}
 }
-
+/*
+Generate all contact of obj in the world
+*/
 unsigned ParticleWorld::generateContacts()
 {
 	unsigned limit = maxContacts;
@@ -34,6 +36,7 @@ unsigned ParticleWorld::generateContacts()
 	for (ContactGenerators::iterator g = contactGenerators.begin();
 		g != contactGenerators.end(); g++)
 	{
+		//for each count of contact adding a contact to a obj
 		unsigned used = (*g)->addContact(nextContact, limit);
 		limit -= used;
 		nextContact += used;

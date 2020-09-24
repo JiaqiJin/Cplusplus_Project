@@ -8,12 +8,15 @@ void ParticleContact::resolve(real duration)
 }
 
 /*
-vs = (`pa - `pb) · n
+vs = (`pa - `pb) · n^
 */
 real ParticleContact::calculateSeparatingVelocity() const
 {
 	Vector3 relativeVelocity = particle[0]->getVelocity();
-	if (particle[1]) relativeVelocity -= particle[1]->getVelocity();
+	if (particle[1])
+	{
+		relativeVelocity -= particle[1]->getVelocity();
+	}
 	return relativeVelocity * contactNormal;
 }
 
@@ -22,7 +25,7 @@ vs = (`pa - `pb) · n
 
 Vs` = -c (coeff restitution) * vs.
 
-impulse f = m``p.
+impulse f = m ``p.
 
 force g = m * `p (here we use inverse mass)
 
@@ -42,11 +45,14 @@ void ParticleContact::resolveVelocity(real duration)
 	}
 
 	// Calculate the new separating velocity (vs`)
-	real newSepVelocity = -separatingVelocity * restitution;
+	real newSepVelocity = - separatingVelocity * restitution;
 
 	// Check the velocity build-up due to acceleration only (acceleration)
 	Vector3 accCausedVelocity = particle[0]->getVelocity();
-	if (particle[1]) accCausedVelocity -= particle[1]->getAcceleration();
+	if (particle[1])
+	{
+		accCausedVelocity -= particle[1]->getAcceleration();
+	}
 	real accCausedSepVelocity = accCausedVelocity * contactNormal * duration;
 
 	// If we've got a closing velocity due to acceleration build-up,
@@ -98,7 +104,7 @@ void ParticleContactResolver::setIterations(unsigned iterations)
 /*
 1- calculate the separating velocity of each contact, keep the lowest value(most negative).
 2- If lowest separating velocity >= 0, finish.
-3- Process cllision response algorithm
+3- Process cpllision response algorithm
 4- If more iteration, return step 1
 */
 void ParticleContactResolver::resolveContacts(ParticleContact* contactArray,
