@@ -15,7 +15,7 @@ the leaves of a tree data structure. each of which has its own bounding volume.
 If the two high-level nodes do touch, then the children of each node need to be
 considered. The algorithm finally generates a list of potential contacts between objects.
 */
-//263
+//286
 #include <vector>
 #include <cstddef>
 #include "contacts.h"
@@ -90,8 +90,12 @@ namespace Kawaii
 		/* Deletes this node, removing it first from the hierarchy, along with its associated
           rigid body and child nodes. 
 		  */
-		//void insert(RigidBody* body, const BoundingVolumeClass& volume);
+		void insert(RigidBody* body, const BoundingVolumeClass& volume);
 
+		/*
+		Deletes this node, removing it first from the hierarchy, along
+		with its associated rigid body and child nodes.This method deletes the node and all its children
+		*/
 		~BVHNode();
 
 		//TODO
@@ -104,9 +108,54 @@ namespace Kawaii
 			unsigned limit) const;
 		/*Check for overlapiping between nodes in the hierachy.*/
 		bool overlaps(const BVHNode<BoundingVolumeClass>* other) const;
+
+		/*For non-leaf, this method recalculates the bounding volume base on 
+		   bounding volume of its children.
+		*/
+		void recalculateBoundingVolume(bool recurse = true);
 	};
 
 	/*----------------------Methods ----------------*/
+	/*Destryuctor of BVH Tree*/
+	template<class BoundingVolumeClass>
+	BVHNode<BoundingVolumeClass>::~BVHNode()
+	{
+		// If we don't have a parent, then we ignore the sibling
+		// processing
+		if (parent)
+		{
+			// Find our sibling
+			BVHNode<BoundingVolumeClass>* sibling;
+			if (parent->children[0] == this) sibling = parent->children[1];
+			else sibling = parent->children[0];
+
+			//Write its data to our parent
+			parent->volume = sibling->volume;
+			parent->body = sibling->body;
+			parent->children[0] = sibling->children[0];
+			parent->children[1] = sibling->children[1];
+
+			// Delete the sibling
+			sibling->parent = NULL;
+			sibling->body = NULL;
+			sibling->children[0] = NULL;
+			sibling->children[1] = NULL;
+			delete sibling;
+			// Recalculate the parent's bounding volume
+			parent->recalculateBoundingVolume();
+		}
+		// Delete our children 
+		if (children[0]) {
+			children[0]->parent = NULL;
+			delete children[0];
+		}
+		if (children[1]) {
+			children[1]->parent = NULL;
+			delete children[1];
+		}
+	}
+
+	//Potential Contacts 
 	template<class BoundingVolumeClass>
 	unsigned BVHNode<BoundingVolumeClass>::getPotentialContacts(PotentialContact* contacts, unsigned limit) const
 	{
@@ -114,7 +163,7 @@ namespace Kawaii
 		// Get the potential contacts of one of our children with the other
 		return children[0]->getPotentialContactsWith(children[1],contacts,limit);
 	}
-
+	//Potential Contacts 
 	template<class BoundingVolumeClass>
 	unsigned BVHNode<BoundingVolumeClass>::getPotentialContactsWith(
 		const BVHNode<BoundingVolumeClass>* other,
@@ -172,6 +221,58 @@ namespace Kawaii
 			}
 		}
 	}
+
+	/*
+	* Insertion 
+	At each node in the tree we choose the child whose bounding volume would be least expanded 
+	by the addition of the new obj,The new bounding volume is calculated
+	based on the current bounding volume and the new object. */
+	template<class BoundingVolumeClass>
+	void BVHNode<BoundingVolumeClass>::insert(RigidBody* newBody, const BoundingVolumeClass& newVolume)
+	{
+		// If we are a leaf, then the only option is to spawn two
+		// new children and place the new body in one.
+		if (isLeaf())
+		{
+			// Child one is a copy of us.
+			children[0] = new BVHNode<BoundingVolumeClass>(this, volume, body);
+			// Child two hold the new body.
+			children[1] = new BVHNode<BoundingVolumeClass>(this, newVolume,newBody);
+			this->body = NULL;
+			recalculateBoundingVolume();
+		}
+		//Otherwise we nned to work out which child get to keep
+		//the insert body.
+		else
+		{
+			if (children[0]->volume.getGrowth(newVolume) <
+				children[1]->volume.getGrowth(newVolume))
+			{
+				children[0]->insert(newBody, newVolume);
+			}
+			else
+			{
+				children[1]->insert(newBody, newVolume);
+			}
+		}
+	}
+
+	/*
+	Recalculate new bounding volume
+	*/
+	template<class BoundingVolumeClass>
+	void BVHNode<BoundingVolumeClass>::recalculateBoundingVolume(bool recurse)
+	{
+		if (isLeaf()) return;
+
+		//use the boinding volume combining contructor
+		volume = BoundingVolumeClass(
+			children[0]->volume,
+			children[1]->volume);
+		// Recurse up the tree
+		if (parent) parent->recalculateBoundingVolume();
+	}
+
 
 	/**/
 	template<class BoundingVolumeClass>
