@@ -163,6 +163,11 @@ namespace Kawaii
 			const CollisionSphere& sphere,
 			CollisionData* data);
 
+		static unsigned boxAndPoint(
+			const CollisionBox& box,
+			const Vector3& point,
+			CollisionData* data);
+
 	};
 
 }

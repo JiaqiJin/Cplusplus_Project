@@ -2,6 +2,13 @@
 
 using namespace Kawaii;
 
+/*
+Separating Axes 
+two objects cannot possibly be in contact as long as there is some axis on which the obj can be projected.
+1- We choose the axis.
+2- we project the objs onto this axis.
+3- we check to see whether the projection are overlapping.
+*/
 static inline real transformToAxis(
     const CollisionBox& box,
     const Vector3& axis
@@ -12,6 +19,29 @@ static inline real transformToAxis(
         box.halfSize.y * real_abs(axis * box.getAxis(1)) +
         box.halfSize.z * real_abs(axis * box.getAxis(2));
 }
+
+/*
+This function checks if the two boxes overlap along the giving axis.
+The final parameter toCentre is used to pass in the vector betwwen the box center points.
+*/
+static inline bool overlapOnAxis(
+    const CollisionBox& one,
+    const CollisionBox& two, 
+    const Vector3& axis,
+    const Vector3& toCentre)
+{
+    //Projection the half size of one onto axis
+    real oneProject = transformToAxis(one, axis);
+    real twoProject = transformToAxis(two, axis);
+
+    // Project this onto the axis
+    real distance = real_abs(toCentre * axis);
+
+    //Check overlap
+    return (distance < oneProject + twoProject);
+}
+
+//--------------------------------
 
 bool IntersectionTests::sphereAndSphere(
     const CollisionSphere& one,
@@ -281,6 +311,57 @@ unsigned CollisionDetector::boxAndSphere(
     contact->contactPoint = closestPtWorld;
     contact->penetration = sphere.radius - real_sqrt(dist);
     contact->setBodyData(box.body, sphere.body,
+        data->friction, data->restitution);
+
+    data->addContacts(1);
+    return 1;
+}
+
+/*
+Consider each vertex of obj A.
+Calculate the interpenetration of that vertex with obj B.
+The deepest such interpenetration is retained.
+Do the Same with obj B vertex against obj A.
+The deepest interpenetration overall is reatined.
+*/
+unsigned CollisionDetector::boxAndPoint(
+    const CollisionBox& box,
+    const Vector3& point,
+    CollisionData* data)
+{
+    //Transform the point into box coordinates
+    Vector3 relPt = box.transform.transformInverse(point);
+    Vector3 normal;
+    // Check each axis, looking for the axis on which the
+    // penetration is least deep.
+    //x
+    real min_depth = box.halfSize.x - real_abs(relPt.x);
+    if (min_depth < 0) return 0;
+    normal = box.getAxis(0) * ((relPt.x < 0) ? -1 : 1);
+    //y
+    real depth = box.halfSize.y - real_abs(relPt.y);
+    if (depth < 0) return 0;
+    else if (depth < min_depth)
+    {
+        min_depth = depth;
+        normal = box.getAxis(1) * ((relPt.y < 0) ? -1 : 1);
+    }
+    //z
+    depth = box.halfSize.z - real_abs(relPt.z);
+    if (depth < 0) return 0;
+    else if (depth < min_depth)
+    {
+        min_depth = depth;
+        normal = box.getAxis(2) * ((relPt.z < 0) ? -1 : 1);
+    }
+
+    // Compile the contact
+    Contact* contact = data->contacts;
+    contact->contactNormal = normal;
+    contact->contactPoint = point;
+    contact->penetration = min_depth;
+
+    contact->setBodyData(box.body, NULL,
         data->friction, data->restitution);
 
     data->addContacts(1);
