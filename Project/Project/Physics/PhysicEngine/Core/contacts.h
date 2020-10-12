@@ -68,9 +68,37 @@ namespace Kawaii
 		*/
 		Matrix3 contactToWorld;
 
+		/*
+		Hold the closing velocity 
+		*/
+		Vector3 contactVelocity;
+
+		/*
+		Hold the requires change in velocity for this contact to be resolved.
+		*/
+		real desiredDeltaVelocity;
+
+		/*
+		 Holds the world space position of the contact point relative to 
+		 centre of each body. 
+		*/
+		Vector3 relativeContactPosition[2];
+
 	protected:
 		/*Calculate the normal basis for the contact point, based on the primary friction direction.*/
 		void calculateContactBasis();
+
+		/*
+		Claculate and set the internal value for the desired delta velocity.
+		*/
+		void calculateDesiredDeltaVelocity(real duration);
+
+		/*
+		Calculate the impulse we neede to resolve this contact,
+		givin that the contact has no friction.
+		*/
+		Vector3 calculateFrictionlessImpulse(Matrix3* inverseInertiaTensor);
+
 	};
 }
 
