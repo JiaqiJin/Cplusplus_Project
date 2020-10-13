@@ -15,6 +15,15 @@ FACE–FACE CONTACTS : when a curved surface comes in contact with another face.
 
 algorithms :
 PRIMITIVE COLLISION ALGORITHMS
+
+RESOLVING Interpenetration
+-Linear Projection : change the position of each obj so that it is moved in the direction of the contact normal.
+-Velocity-Based Resolution : take into account the linear and angular velocities of the objects in the collision. 
+we could move them back to the point of first collision.calculating this point of first collision is difficult and not worth worrying about.
+We need track of the vel and rotation of each obj before any collison resolution again.
+-Nonlinear Projection : we use a combination of linear and angular movement to resolve the penetration.
+We move 2 obj to contact normla until the are no longer interpenetrating. For each object in the collision we need to calculate the amount of 
+linear motion and the amount of angular motion
 */
 
 #include "body.h"
@@ -99,6 +108,15 @@ namespace Kawaii
 		*/
 		Vector3 calculateFrictionlessImpulse(Matrix3* inverseInertiaTensor);
 
+		/*
+		Persomr an inertial weight impulse.
+		*/
+		void applyVelocityChange(Vector3 velocityChange[2], Vector3 rotationChange[2]);
+
+		/*
+		 Performs an inertia weighted penetration resolution of this contact alone.
+		*/
+		void applyPositionChange(Vector3 linearChange[2], Vector3 angularChange[2], real penetration);
 	};
 }
 

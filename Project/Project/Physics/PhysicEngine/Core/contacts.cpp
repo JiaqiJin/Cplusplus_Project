@@ -165,3 +165,125 @@ void Contact::calculateDesiredDeltaVelocity(real duration)
     // Combine the bounce velocity with the removed acceleration velocity.
     desiredDeltaVelocity = -contactVelocity.x - thisRestitution * (contactVelocity.x - velocityFromAcc);
 }
+
+/*
+Calculating and  Applying the impulse
+In contact coordenade the contact normal is in X axis G(contact) = [g ,0 , 0]. G is the impulse
+convert out of contact coordinates into world coordinates.<[gworld = Mgcontact]>, Convert impulse to world coordinates.
+
+`p = g / m velocity change
+rotation change = ΔÒ = I^-1 · u 
+u = qrel × g
+
+*/
+void Contact::applyVelocityChange(Vector3 velocityChange[2], Vector3 rotationChange[2])
+{
+    //Get hold of the inverse mass and inverse inertia tensor, both in world coordinates
+    Matrix3 inverseInertiaTensor[2];
+    body[0]->getInverseInertiaTensorWorld(&inverseInertiaTensor[0]);
+    if (body[1])
+    {
+        body[1]->getInverseInertiaTensorWorld(&inverseInertiaTensor[1]);
+    }
+
+    // We will calculate the impulse for each contact axis
+    Vector3 impulseContact;
+
+    if (friction == (real)0.0)
+    {
+        impulseContact = calculateFrictionlessImpulse(inverseInertiaTensor);
+    }
+    else
+    {
+        // Otherwise we may have impulses that aren't in the direction of the
+        // contact, so we need the more complex version.
+        //TODO
+    }
+    //Converte impulse to wolrd coordinates
+    Vector3 impulse = contactToWorld.transform(impulseContact);
+
+    // Split in the impulse into linear and rotational components
+    //u = qrel × g (g = impulse)
+    //ΔÒ = I^-1 · u 
+    // `p = g / m
+    Vector3 impulsiveTorque = relativeContactPosition[0] % impulse;
+    rotationChange[0] = inverseInertiaTensor[0].transform(impulsiveTorque);
+    velocityChange[0].clear();
+    velocityChange[0].addScaledVector(impulse, body[0]->getInverseMass());
+
+    // Apply the changes
+    body[0]->addVelocity(velocityChange[0]);
+    body[0]->addRotation(rotationChange[0]);
+
+    if (body[1])
+    {
+        // Work out body one's linear and angular changes
+        Vector3 impulsiveTorque = impulse % relativeContactPosition[1];
+        rotationChange[1] = inverseInertiaTensor[1].transform(impulsiveTorque);
+        velocityChange[1].clear();
+        // opposite direction respective to 1 obj.
+        velocityChange[1].addScaledVector(impulse, -body[1]->getInverseMass());
+
+        // And apply them.
+        body[1]->addVelocity(velocityChange[1]);
+        body[1]->addRotation(rotationChange[1]);
+    }
+}
+
+/*
+Ìnterpenetration : IMPLEMENTING NONLINEAR PROJECTION 
+Calculating the Components : 
+Inertial : the resistance of an object TO BEING MOVING
+inertia will have a linear component and a rotational component.
+The linear component of inertia = INVERSE MASS
+The angular component previus used.
+
+Applying the Movement 
+Angular motion : 1 calculate the rotation needed to move the contact point by one unit.
+2 multiply this by number of unit needed
+3 apply the rotation to the orientation quartenion.
+
+
+*/
+void Contact::applyPositionChange(Vector3 linearChange[2], Vector3 angularChange[2], real penetration)
+{
+    const real angularLimit = (real)0.2f;
+    real angularMove[2];
+    real linearMove[2];
+
+    real totalInertia = 0;
+    real linearInertia[2];
+    real angularInertia[2];
+    // We need to work out the inertia of each object in the direction
+    // of the contact normal, due to angular inertia only.
+    for (unsigned i = 0; i < 2; i++)
+    {
+        if (body[i])
+        {
+            Matrix3 inverseInertiaTensor;
+            body[i]->getInverseInertiaTensorWorld(&inverseInertiaTensor);
+
+            //Use the same procedure as for calculating frictionless
+             // velocity change to work out the angular inertia.
+            Vector3 angularInertiaWorld = relativeContactPosition[i] % contactNormal;
+            angularInertiaWorld = inverseInertiaTensor.transform(angularInertiaWorld);
+            angularInertiaWorld = angularInertiaWorld % relativeContactPosition[i];
+            angularInertia[i] = angularInertiaWorld * contactNormal;
+
+            // The linear component is simply the inverse mass
+            linearInertia[i] = body[i]->getInverseMass();
+
+            //keep track of total inertial from all component
+            totalInertia += linearInertia[i] + angularInertia[i];
+            // We break the loop here so that the totalInertia value is
+            // completely calculated (by both iterations) before
+            // continuing.
+        }
+    }
+
+    // Loop through again calculating and applying the changes
+    for (unsigned i = 0; i < 2; i++) if (body[i])
+    {
+
+    }
+}
