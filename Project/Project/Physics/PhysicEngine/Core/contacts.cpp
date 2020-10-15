@@ -1,4 +1,7 @@
-﻿#include "contacts.h"
+﻿#include <memory.h>
+#include <assert.h>
+
+#include "contacts.h"
 
 using namespace Kawaii;
 
@@ -9,6 +12,90 @@ void Contact::setBodyData(RigidBody* one, RigidBody* two,
     Contact::body[1] = two;
     Contact::friction = friction;
     Contact::restitution = restitution;
+}
+
+/*
+we need to calculate each of the
+three bits of data: the contact basis, the relative position, and the relative velocity
+*/
+void Contact::calculateInternals(real duration)
+{
+    // Check if the first object is NULL, and swap if it is.
+    if(!body[0]) swapBodies();
+    assert(body[0]);
+
+    //Calculate the set of axis at the contact point.
+    calculateContactBasis();
+
+    //Store relative position of the contact to each body
+    relativeContactPosition[0] = contactPoint - body[0]->getPosition();
+    if (body[1])
+    {
+        relativeContactPosition[1] = contactPoint - body[1]->getPosition();
+    }
+    
+    //Find the relative velocity of the bodies at the contact point
+    contactVelocity = calculateLocalVelocity(0, duration);
+
+    if (body[1])
+    {
+        contactVelocity -= calculateLocalVelocity(1, duration);
+    }
+
+    //calculate the desirewd changed in velocity for resolution
+    calculateDesiredDeltaVelocity(duration);
+}
+
+/*
+Swaps the bodies in the current contact, so body 0 is at body 1 and
+vice versa. This also changes the direction of the contact normal,
+but doesn't update any calculated internal data.
+*/
+void Contact::swapBodies()
+{
+    contactNormal *= -1;
+
+    RigidBody* temp = body[0];
+    body[0] = body[1];
+    body[1] = temp;
+}
+
+/*
+The relative velocity we are interesting in is the total closing velocity of both objs at the contact point.
+x values will give the velocity direction of the contact normal.
+y and z value will give the amount of the sliding that taking place at contact.
+Velocity at point `Qrel = Ò x Qrel + `p
+
+Qrel is the position of the point we are interesting in, relative to the objs center of mass.
+p = position of objs center of mass(`p is lineal velocity of the whole obj) Ò angular velocity.
+
+*/
+Vector3 Contact::calculateLocalVelocity(unsigned bodyIndex, real duration)
+{
+    RigidBody* thisBody = body[bodyIndex];
+
+    //Work out the velocity of the contact point
+    Vector3 velocity = thisBody->getRotation() % relativeContactPosition[bodyIndex];
+    velocity += thisBody->getVelocity();
+
+    // Turn the velocity into contact-coordinates.
+    Vector3 contactVelocity = contactToWorld.transformTranspose(velocity);
+
+    //Calculate the ammount of the velocity that is due to forces without relation
+    Vector3 accVelocity = thisBody->getLastFrameAcceleration() * duration;
+
+    // Calculate the velocity in contact-coordinates.
+    accVelocity = contactToWorld.transformTranspose(accVelocity);
+
+    // We ignore any component of acceleration in the contact normal
+    // direction, we are only interested in planar acceleration
+    accVelocity.x = 0;
+
+    // Add the planar velocities - if there's enough friction they will
+   // be removed during velocity resolution
+    contactVelocity += accVelocity;
+
+    return contactVelocity;
 }
 
 /*
@@ -284,6 +371,39 @@ void Contact::applyPositionChange(Vector3 linearChange[2], Vector3 angularChange
     // Loop through again calculating and applying the changes
     for (unsigned i = 0; i < 2; i++) if (body[i])
     {
+        //TODO
+    }
+}
 
+/*
+The contact resolution routine that the whole set of the collison and duration of the frame
+and performs the resolution in 3 step:
+    1- calculate the internal data for each contact.
+    2- passes the contacts penetration resolver.
+    3- velocity resolver.
+*/
+void ContactResolver::resolveContacts(Contact* contactArray, unsigned numContacts, real duration)
+{
+    // Make sure we have something to do.
+    if (numContacts == 0) return;
+
+    //Prepare for contact processing
+    prepareContacts(contactArray, numContacts, duration);
+}
+
+/*
+We performing a penetration resolution step as well as a velocity resolution step for each contact.
+It usefull to calculate information that both steps need in 1 central location.
+In the first category are two bits of data:
+- the basis matrix for contact point, calculated in the calculateContactBasis method, is called contactToWorld.
+-The position of the contact is relative to each object. relativeContactPosition
+*/
+void ContactResolver::prepareContacts(Contact* contacts, unsigned numContacts, real duration)
+{
+    // Generate contact velocity and axis information.
+    Contact* lastContact = contacts + numContacts;
+    for (Contact* contact = contacts; contact < lastContact; contact++)
+    {
+        contact->calculateInternals(duration);
     }
 }

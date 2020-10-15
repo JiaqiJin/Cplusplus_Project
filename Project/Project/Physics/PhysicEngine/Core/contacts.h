@@ -30,6 +30,8 @@ linear motion and the amount of angular motion
 
 namespace Kawaii
 {
+	class ContactResolver;
+
 	/*
 	IMPULSES AND IMPULSIVE TORQUES
 	the collision will generate a linear change in velocity (the impulse) and an angular change in velocity.
@@ -55,6 +57,10 @@ namespace Kawaii
 	*/
 	class Contact
 	{
+		/*
+		The contact resolver obj need acces into the contact to set and effect the contact.
+		*/
+		friend class ContactResolver;
 	public:
 		/* --- CONTACT DATA ---*/
 		Vector3 contactPoint;
@@ -94,6 +100,17 @@ namespace Kawaii
 		Vector3 relativeContactPosition[2];
 
 	protected:
+
+		/*
+		Calculates internal data from state data. This is called before the resolution algorithm tries do any resolution.
+		*/
+		void calculateInternals(real duration);
+
+		/*
+		Reverse the contact. This involve swapping the 2 rigid bodies and reversing the contact normal.
+		*/
+		void swapBodies();
+
 		/*Calculate the normal basis for the contact point, based on the primary friction direction.*/
 		void calculateContactBasis();
 
@@ -109,6 +126,11 @@ namespace Kawaii
 		Vector3 calculateFrictionlessImpulse(Matrix3* inverseInertiaTensor);
 
 		/*
+		Claculate and return the velocity of the contact point by giving body
+		*/
+		Vector3 calculateLocalVelocity(unsigned bodyIndex, real duration);
+
+		/*
 		Persomr an inertial weight impulse.
 		*/
 		void applyVelocityChange(Vector3 velocityChange[2], Vector3 rotationChange[2]);
@@ -118,6 +140,35 @@ namespace Kawaii
 		*/
 		void applyPositionChange(Vector3 linearChange[2], Vector3 angularChange[2], real penetration);
 	};
+
+	/*
+	THE COLLISION RESOLUTION PIPELINE
+	Collisions are generate by the collision detector based on the collision geomtry of the obj.
+	The collision resolution routine has two components: 
+	-a velocity resolution system.
+	-a penetration resolution system.
+	*/
+
+	class ContactResolver
+	{
+	public:
+		/*
+		* Resolve the set of the contact for both penetration and velocity.
+		* Contact cannot interact with each other should be passed to separate calls to resolverContacts.
+		* contactArray = pointer to an array of the contacts objs.
+		* numContacts = The number of contacts in the array to resolve.
+		* duration  = The duration of the previous integration step.
+		*/
+		void resolveContacts(Contact* contactArray, unsigned numContacts, real duration);
+
+	protected:
+		/*
+		* Set ups contact rdy for processing. 
+		calculate the internal data for each contact and made bodies alive.
+		*/
+		void prepareContacts(Contact* contactArray, unsigned numContacts, real duration);
+	};
+
 }
 
 #endif
