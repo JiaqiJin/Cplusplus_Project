@@ -118,6 +118,10 @@ namespace Kawaii
 		Claculate and set the internal value for the desired delta velocity.
 		*/
 		void calculateDesiredDeltaVelocity(real duration);
+		/*
+		 Updates the awake state of rigid bodies that are takin  place in the given contact. 
+		*/
+		void matchAwakeState();
 
 		/*
 		Calculate the impulse we neede to resolve this contact,
@@ -151,6 +155,42 @@ namespace Kawaii
 
 	class ContactResolver
 	{
+	protected:
+		/**
+	  * Holds the number of iterations to perform when resolving velocity.
+	  */
+		unsigned velocityIterations;
+
+		/**
+		 * Holds the number of iterations to perform when resolving position.
+		 */
+		unsigned positionIterations;
+
+		/**
+		 * To avoid instability velocities smaller
+		 * than this value are considered to be zero.
+		 */
+		real velocityEpsilon;
+
+		/**
+		 * To avoid instability penetrations
+		 * smaller than this value are considered to be not interpenetrating.
+		 */
+		real positionEpsilon;
+
+	public:
+		/**
+		 * Stores the number of velocity iterations used in the
+		 * last call to resolve contacts.
+		 */
+		unsigned velocityIterationsUsed;
+
+		/**
+		 * Stores the number of position iterations used in the
+		 * last call to resolve contacts.
+		 */
+		unsigned positionIterationsUsed;
+
 	public:
 		/*
 		* Resolve the set of the contact for both penetration and velocity.
@@ -167,6 +207,18 @@ namespace Kawaii
 		calculate the internal data for each contact and made bodies alive.
 		*/
 		void prepareContacts(Contact* contactArray, unsigned numContacts, real duration);
+
+		/**
+		 * Resolves the velocity issues with the given array of constraints,
+		 * using the given number of iterations.
+		 */
+		void adjustVelocities(Contact* contactArray, unsigned numContacts, real duration);
+
+		/**
+		 * Resolves the positional issues with the given array of constraints,
+		 * using the given number of iterations.
+		 */
+		void adjustPositions(Contact* contacts, unsigned numContacts, real duration);
 	};
 
 }
