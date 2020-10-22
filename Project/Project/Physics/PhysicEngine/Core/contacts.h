@@ -1,6 +1,5 @@
 ﻿#ifndef KAWAII_CONTACTS_H
 #define KAWAII_CONTACTS_H
-//336
 /*
 The contact resolution system.
 CONTACT DATA : 
@@ -24,6 +23,8 @@ We need track of the vel and rotation of each obj before any collison resolution
 -Nonlinear Projection : we use a combination of linear and angular movement to resolve the penetration.
 We move 2 obj to contact normla until the are no longer interpenetrating. For each object in the collision we need to calculate the amount of 
 linear motion and the amount of angular motion
+
+Friction : is the force generate when one obj moves or try to move in contact with another. (Static and dynamic)
 */
 
 #include "body.h"
@@ -143,6 +144,12 @@ namespace Kawaii
 		 Performs an inertia weighted penetration resolution of this contact alone.
 		*/
 		void applyPositionChange(Vector3 linearChange[2], Vector3 angularChange[2], real penetration);
+
+		/*
+		Calculates the impulse need to resolver this contact,given that the contact has a non-zero coefficient of friction.
+		Apair of inertial tensor, one for each contact obj.
+		*/
+		Vector3 calculateFrictionImpulse(Matrix3* inverseInertiaTensor);
 	};
 
 	/*

@@ -240,6 +240,18 @@ We need remove all existing closing velocity at the contact, and keep going so t
 original value but in the oposite direction.
 If the coefficient of restitution, c, is zero, then the change in velocity will be sufficient
 to remove all the existing closing velocity but no more.
+
+Microcollision replace reaction force by a series of impulses- one per update.
+We allowed resolution system apply umpulses(at each frame the system calculate the impulse need).
+    -we remove any velocity that has been build up from acceletation in previus Rigid body.
+    -artificially decrease the coefficient of restitution for collisions involving very low speeds.
+both of these can solve the vibration problem for some simulations.
+
+To remove acceletation due previus frame acceleration, we need keep track of the acceleration at each rigid-body update(LastFrameAcceleration)
+V`s = -CVs => ΔVs = -Vs - CVs = (-1+C)Vs ->>>>>> changed
+ΔV = -Vacc -(  1 + c ) (Vs - Vacc)  
+Lowering the Restitution
+appliedRestitution = (real)0.0f;
 */
 void Contact::calculateDesiredDeltaVelocity(real duration)
 {
@@ -551,4 +563,128 @@ void ContactResolver::adjustPositions(Contact* c,
         }
         positionIterationsUsed++;
     }
+}
+
+/*
+Friction : is the force generate when one obj moves or try to move in contact with another. (Static and dynamic)
+Rolled together into a generic friction value.
+Static friction is a force that stops an object moving when it is stationary (sometime called stiction).
+|Fstatic| <= μ(static)|r|
+r = reaction force in the direction of contact normal
+|Fstatic| = friction force generate
+μ static = coeff os static friction, encapsule all material property.
+Expression of Fstatic = { -Fplanar , ^Fplanar - μ(static)} Fplanar = total force on the obj in the plane of contact only
+r = -f · ^d  <[^d = contact normal,  f = force exerted]>
+Fplanar = f + r
+
+Dynamic Friction（kinetic friction）
+fdynamic = −^Vplanar μ(dynamic) |r|
+acting in the opposite direction to the planar force.
+types = Isotropic friction has the same coefficient in all directions. Anisotropic friction can have different coefficients in different directions.
+Friction as Impulses g = ft (g = impulse, f = force), the equation require normal reaction force
+f = Δvmt
+Combine impulse and friction equation
+g(max) = Δg(normal) μ 
+that these impulse values are scalar: this tells us the total impulse we can apply with static friction.
+
+Velocity Resolution Algorithm : an impulse in one direction can increase the velocity of the contact in a different direction
+1 - We work in a set of coordenates that are realtive to the contact. We create transform matrix to convert into and out of new set coordinates.
+Turning impulse to a torque
+2 - Work out in changed velocity of the contact point on each obj per unit impulse. impulse will cause linear and angular motion,
+it will tranform a vetor (impulse) to another vector(resulting velocity)->matrix
+3 - know the velocity change we want to see, so we invert the result of the last stage to find the impulse needed to generate any given velocity.
+find the inverse of matrix.
+4 - Work out the separating velocity at the contact point shoul be.
+5 - From the change in velocity, we can calculate the impulse that must be genrate
+6 - We split the impulse into its linear and angular components and apply to each obj.
+Note : that only the impulseToTorque and inverseInertiaTensormatrices will change for each body.contactToWorld are same each case
+
+Velocity from Linear Motion Δ`p = m^-1 g
+We are trying combineing one matrix with lineal and angular componet of velocity.
+τ = Pf x f work the entire basis matrix through the same series of steps:
+// This was a cross-product.
+Matrix3 torquePerUnitImpulse = impulseToTorque * contactToWorld;
+// This was a vector transformed by the tensor matrix; now it’s
+Matrix3 rotationPerUnitImpulse = inverseInertiaTensor * torquePerUnitImpulse;
+This was the reverse cross-product, so we’ll need to multiply the
+// result by -1.
+Matrix3 velocityPerUnitImpulse = rotationPerUnitImpulse * impulseToTorque;
+velocityPerUnitImpulse *= -1;
+// Finally, convert the result into contact coordinates.
+Matrix3 velocityPerUnitImpulseContact = contactToWorld.transpose() * velocityPerUnitImpulse;
+*/
+inline
+Vector3 Contact::calculateFrictionImpulse(Matrix3* inverseInertiaTensor)
+{
+    Vector3 impulseContact;
+    real inverseMass = body[0]->getInverseMass();
+
+    //The equivalent of a cross product in matrices is multiplication by a skew symmetric matrix (1)
+    Matrix3 impulseToTorque;
+    impulseToTorque.setSkewSymmetric(relativeContactPosition[0]);
+
+    //Build the matrix convert contact impulse to change in velocity in wolrd coordenates
+    Matrix3 deltaVelWorld = impulseToTorque;
+    deltaVelWorld *= inverseInertiaTensor[0];
+    deltaVelWorld *= impulseToTorque;
+    //This was reverse croos product , we will need to multiply by -1
+    deltaVelWorld *= -1;
+
+    // Check if we need to add body two's data
+    if (body[1])
+    {
+        impulseToTorque.setSkewSymmetric(relativeContactPosition[1]);
+        // Calculate the velocity change matrix
+        Matrix3 deltaVelWorld2 = impulseToTorque;
+        deltaVelWorld2 *= inverseInertiaTensor[1];
+        deltaVelWorld2 *= impulseToTorque;
+        deltaVelWorld2 *= -1;
+
+        deltaVelWorld += deltaVelWorld2;
+        // Add to the inverse mass
+        inverseMass += body[1]->getInverseMass();
+    }
+
+    // Perform a change of basis to convert into contact coordinates(matrix transform impulse to velocity contact coordinates).
+    //we change the basis of a matrix by BMB^-1, andM is thematrix being transformed BMB^t
+    Matrix3 deltaVelocity = contactToWorld.transpose();
+    deltaVelocity *= deltaVelWorld;
+    deltaVelocity *= contactToWorld;
+
+    // Add in the linear velocity change
+    deltaVelocity.data[0] += inverseMass;
+    deltaVelocity.data[4] += inverseMass;
+    deltaVelocity.data[8] += inverseMass;
+
+    // Invert to get the impulse needed per unit velocity
+    Matrix3 impulseMatrix = deltaVelocity.inverse();
+
+    // Find the target velocities to kill, closing velocity is killed by applying a small impulse
+    Vector3 velKill(desiredDeltaVelocity, -contactVelocity.y, -contactVelocity.z);
+
+    // Find the impulse to kill target velocities
+    impulseContact = impulseMatrix.transform(velKill);
+
+    // Check for exceeding friction
+    real planarImpulse = real_sqrt(
+        impulseContact.y * impulseContact.y +
+        impulseContact.z * impulseContact.z);
+    // Check that we’re within the limit of static friction.
+    if(planarImpulse > impulseContact.x * friction)
+    {
+        // Handle as dynamic friction. Dynamic friction can be handled by scaling 
+        //the Y and Z component pf impulse,divide planarImpulse scales the Y and Z components so they have a unit size
+        impulseContact.y /= planarImpulse;
+        impulseContact.z /= planarImpulse;
+
+        impulseContact.x = deltaVelocity.data[0] +
+            deltaVelocity.data[1] * friction * impulseContact.y +
+            deltaVelocity.data[2] * friction * impulseContact.z;
+
+        //Multiplying the direction by size gives new values for each component.
+        impulseContact.x = desiredDeltaVelocity / impulseContact.x;
+        impulseContact.y *= friction * impulseContact.x;
+        impulseContact.z *= friction * impulseContact.x;
+    }
+    return impulseContact;
 }
