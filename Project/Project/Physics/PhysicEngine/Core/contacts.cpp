@@ -60,6 +60,22 @@ void Contact::swapBodies()
     body[1] = temp;
 }
 
+void Contact::matchAwakeState()
+{
+    // Collisions with the world never cause a body to wake up.
+    if (!body[1]) return;
+
+    bool body0awake = body[0]->getAwake();
+    bool body1awake = body[1]->getAwake();
+
+    // Wake up only the sleeping one
+    if (body0awake ^ body1awake)
+    {
+        if (body0awake) body[1]->setAwake();
+        else body[0]->setAwake();
+    }
+}
+
 /*
 The relative velocity we are interesting in is the total closing velocity of both objs at the contact point.
 x values will give the velocity direction of the contact normal.
@@ -389,6 +405,12 @@ void ContactResolver::resolveContacts(Contact* contactArray, unsigned numContact
 
     //Prepare for contact processing
     prepareContacts(contactArray, numContacts, duration);
+
+    // Resolve the interpenetration problems with the contacts.
+    adjustPositions(contactArray, numContacts, duration);
+
+    // Resolve the velocity problems with the contacts.
+    adjustVelocities(contactArray, numContacts, duration);
 }
 
 /*
@@ -405,5 +427,143 @@ void ContactResolver::prepareContacts(Contact* contacts, unsigned numContacts, r
     for (Contact* contact = contacts; contact < lastContact; contact++)
     {
         contact->calculateInternals(duration);
+    }
+}
+
+/*
+RESOLVING PENETRATION
+At each iteration we search throght to find the collision with the deepest penetration value.
+This is handled through its "applyPositionChange" method in the normal way. The process is then reapeated up
+ to so maximum number of iteration.
+
+--Iterative Algorithm Implemented
+Looks throght the whole list of contacts at each iteration. Too complex to be run for each iteration of resolution algorith.
+
+--Updating Penetration Depths
+When the penetration for collision is resolved, only 1 or 2 objs can be moved.
+After resolving the penetration, we keep track of the lineal and angular motion of each objs.
+To calculate the new penetration value we calculate the new position of the relative contact point for each object,
+based on lineal and angular movements. The penetration value is adjusted based on the new position
+of these two points.
+if they have moved apart the nthe penetration will be less.
+
+Finally we need some mechanism for storing the adjustments made in the "applyPositionChange" method for use in this update.
+finding the worst penetration, resoving it and then updating the remaing contacts.
+*/
+
+void ContactResolver::adjustPositions(Contact* contacts, unsigned numContacts, real duration)
+{
+    unsigned i, index;
+    Vector3 linearChange[2], angularChange[2];
+    real max;
+    Vector3 deltaPosition;
+
+    // iteratively resolve interpenetrations in order of severity.
+    positionIterationsUsed = 0;
+    while (positionIterationsUsed < positionIterations)
+    {
+        // Find biggest penetration
+        max = positionEpsilon;
+        index = numContacts;
+        for (int i = 0; i < numContacts; i++)
+        {
+            if (contacts[i].penetration > max)
+            {
+                max = contacts[i].penetration;
+                index = i;
+            }
+        }
+        if (index == numContacts) break;
+
+        //Match the awake state at the contact
+        contacts[index].matchAwakeState();
+
+        // Resolve the penetration.
+        contacts[index].applyPositionChange(linearChange, angularChange, max);
+
+        // Again this action may have changed the penetration of other
+        // bodies, so we update contacts.
+        for (int i = 0; i < numContacts; i++)
+        {
+            // Check each body in the contact
+            for (unsigned b = 0; b < 2; b++) if (contacts[i].body[b])
+            {
+                //Check for a match with each body in the newly
+                //resolver contact
+                for (unsigned d = 0; d < 2; d++)
+                {
+                    if (contacts[i].body[b] == contacts[index].body[d])
+                    {
+                        deltaPosition = linearChange[d] + angularChange[d].vectorProduct(contacts[i].relativeContactPosition[b]);
+
+                        //The sign of the change is positive if we're dealing with 2 bodyin a contact.
+                        contacts[i].penetration += deltaPosition.scalarProduct(contacts[i].contactNormal) * (b ? 1 : -1);
+                    }
+                }
+            }
+        }
+        positionIterationsUsed++;
+    }
+}
+
+/*
+RESOLVING VELOCITY
+The algorith run with iteration, at each iteration finds the collison with the greates closing velocity.
+If there is no collision with a closing velocity, then the algorithm
+can terminate. If there is a collision, then it is resolved in isolation. Other contacts are then
+update based on the changed that were made.
+*/
+
+void ContactResolver::adjustVelocities(Contact* c, unsigned numContacts, real duration)
+{
+    //TODO
+    Vector3 velocityChange[2], rotationChange[2];
+    Vector3 deltaVel;
+
+    velocityIterationsUsed = 0;
+    while (velocityIterationsUsed < velocityIterations)
+    {
+        //Find the contact with maximum magnitude of probable velocity chenge.
+        real max = velocityEpsilon;
+        unsigned index = numContacts;
+        for (unsigned i = 0; i < numContacts; i++)
+        {
+            if (c[i].desiredDeltaVelocity > max)
+            {
+                max = c[i].desiredDeltaVelocity;
+                index = i;
+            }
+        }
+        if (index == numContacts) break;
+
+        // Match the awake state at the contact
+        c[index].matchAwakeState();
+
+        //Do the resolution on the contact come out top
+        c[index].applyVelocityChange(velocityChange, rotationChange);
+
+        //With velocity chnaged in 2 bodies, update of contact velocities mean that some of the 
+        //relative closing velocities need recomputing
+        for (unsigned i = 0; i < numContacts; i++)
+        {
+            //check each bodies in the contact
+            for (unsigned b = 0; b < 2; b++) if (c[i].body[b])
+            {
+                // Check for a match with each body in the newly
+                // resolved contact
+                for (unsigned d = 0; d < 2; d++)
+                {
+                    if (c[i].body[b] == c[index].body[d])
+                    {
+                        deltaVel = velocityChange[d] + rotationChange[d].vectorProduct(c[i].relativeContactPosition[b]);
+                        // The sign of the change is negative if we're dealing
+                        // with the second body in a contact.
+                        c[i].contactVelocity += c[i].contactToWorld.transformTranspose(deltaVel) * (b ? -1 : 1);
+                        c[i].calculateDesiredDeltaVelocity(duration);
+                    }
+                }
+            }
+        }
+        velocityIterationsUsed++;
     }
 }

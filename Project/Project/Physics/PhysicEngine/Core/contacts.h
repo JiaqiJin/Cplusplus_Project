@@ -24,6 +24,8 @@ We need track of the vel and rotation of each obj before any collison resolution
 -Nonlinear Projection : we use a combination of linear and angular movement to resolve the penetration.
 We move 2 obj to contact normla until the are no longer interpenetrating. For each object in the collision we need to calculate the amount of 
 linear motion and the amount of angular motion
+
+
 */
 
 #include "body.h"
@@ -65,13 +67,14 @@ namespace Kawaii
 		/* --- CONTACT DATA ---*/
 		Vector3 contactPoint;
 		Vector3 contactNormal;
-		real penetration;
 		/*Holds the lateral friction coefficient at the contact.*/
 		real friction;
 		/* Holds the normal restitution coefficient at the contact.*/
 		real restitution;
 		/*Hold the bodies that are involved in the contact.*/
 		RigidBody* body[2];
+		/*Hold the depth of penetration at the contact point.*/
+		real penetration;
 
 		/**/
 		void setBodyData(RigidBody* one, RigidBody* two, real friction, real restitution);
@@ -111,6 +114,11 @@ namespace Kawaii
 		*/
 		void swapBodies();
 
+		/*
+		Updates the awake state of rigid bodies that are taking place in the giving contact
+		*/
+		void matchAwakeState();
+
 		/*Calculate the normal basis for the contact point, based on the primary friction direction.*/
 		void calculateContactBasis();
 
@@ -139,6 +147,7 @@ namespace Kawaii
 		 Performs an inertia weighted penetration resolution of this contact alone.
 		*/
 		void applyPositionChange(Vector3 linearChange[2], Vector3 angularChange[2], real penetration);
+
 	};
 
 	/*
@@ -147,10 +156,29 @@ namespace Kawaii
 	The collision resolution routine has two components: 
 	-a velocity resolution system.
 	-a penetration resolution system.
+
+	Collision resolution involves some of the most complex mathematics.
+	For a single contact we do it in 2 step : 
+	-Resolving the interpenetration between objs 
+	-Turning their closing velocity into rebounding velocity.
+	The velocity resolution algorithm involves working out the effect of applying an impulse to contact point.
+	THe single impulse that will be modifies both the lineal and angular velocity.
 	*/
 
 	class ContactResolver
 	{
+	protected:
+		/*Hold the number of iteration tp perform when resolving position*/
+		unsigned positionIterations;
+		/*Hold the number of iteration to perform when resolving velocity*/
+		unsigned velocityIterations;
+
+		/*To avoid instability penetrations
+        smaller than this value are considered to be not interpenetrating.*/
+		real positionEpsilon;
+		/*To avoid instability velocities smaller han this value are considered to be zero.*/
+		real velocityEpsilon;
+
 	public:
 		/*
 		* Resolve the set of the contact for both penetration and velocity.
@@ -161,12 +189,33 @@ namespace Kawaii
 		*/
 		void resolveContacts(Contact* contactArray, unsigned numContacts, real duration);
 
+	public:
+
+		/*
+		Store the number of position iteration used in the las call to resolver contacts.
+		*/
+		unsigned positionIterationsUsed;
+
+		/** Stores the number of velocity iterations used in the las call to resolver contacts.*/
+		unsigned velocityIterationsUsed;;
+
 	protected:
 		/*
 		* Set ups contact rdy for processing. 
 		calculate the internal data for each contact and made bodies alive.
 		*/
 		void prepareContacts(Contact* contactArray, unsigned numContacts, real duration);
+
+		/*
+		Resolver the position issues with giving array of constraints. using giving iteration
+		*/
+		void adjustPositions(Contact* contacts, unsigned numContacts, real duration);
+
+		/*
+		Resolver the velocites issues wit hgiving arreay of the constraints, using giving num of iteration.
+		*/
+		void adjustVelocities(Contact* contactArray, unsigned numContacts, real duration);
+
 	};
 
 }
