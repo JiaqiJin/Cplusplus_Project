@@ -228,6 +228,12 @@ namespace Kawaii
 		void adjustPositions(Contact* contacts, unsigned numContacts, real duration);
 	};
 
+	class ContactGenerator
+	{
+	public:
+		virtual unsigned addContact(Contact* contact, unsigned limit) const = 0;
+	};
+
 }
 
 #endif
