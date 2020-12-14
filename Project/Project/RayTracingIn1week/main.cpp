@@ -5,78 +5,75 @@
 
 #include <iostream>
 
-#include "vec3.h"
-#include "ray.h"
+#include "helper.h"
+#include "color.h"
+#include "hittable_list.h"
+#include "sphere.h"
+#include "camera.h"
 
-/*(t^2)b·b + 2tb·(a - c) +  (a - c)· (a - c) - r^2 = 0 , t = unknown */
-double hit_sphere(const vec3& center, float radius, const ray&r)
+color ray_color(const ray& r, const hittable& world)
 {
-	vec3 A_C = r.origin() - center;
-	vec3 B = r.direction();
-	float a = dot(B, B);//b·b 
-	float b = 2.0 * dot(A_C, B); //2tb·(a - c)
-	float c = dot(A_C, A_C) - radius * radius; //a - c)· (a - c) - r^2
-	float discriminant = b * b - 4 * a * c;
-	if (discriminant < 0) {
-		return -1.0;
+	hit_record rec;
+	if (world.hit(r, 0.001, infinity, rec)) {
+		// 若 ray 交到场景中 diffuse 物体，trace 新的 ray
+		vec3 target = rec.p + rec.normal + random_in_unit_sphere();
+		// pick random point S inside this unit radius and send a ray from the hit point P to random point S
+		return 0.5 * ray_color(ray(rec.p, target - rec.p), world);
 	}
 	else {
-		return (-b - sqrt(discriminant)) / (2.0 * a);
+		// 否则，计算背景色并返回
+		vec3 unit_direction = unit_vector(r.direction());
+		float t = (0.5 * unit_direction.y() + 1.0);
+		return (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
 	}
-}
-
-color ray_color(const ray& r)
-{
-	// 如果 ray r 击中球体的话，返回球体的颜色
-	auto t = hit_sphere(point3(0, 0, -1), 0.5, r);
-	if (t > 0.0)
-	{
-		vec3 N = unit_vector(r.at(t) - vec3(0, 0, -1));
-		return 0.5 * color(N.x() + 1, N.y() + 1, N.z() + 1);
-	}
-	// 否则，计算背景色并返回
-	vec3 unit_direction = unit_vector(r.direction());
-	t = 0.5 * (unit_direction.y() + 1.0);
-	return (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
 }
 
 int main() {
 	// width, height, channels of image
 	const auto aspect_ratio = 16.0 / 9.0;
-	int nx = 1920; // width
-	int ny = 1080; // height
+	int nx = 400; // width
+	int ny = static_cast<int>(nx / aspect_ratio);
 	int channels = 3;
+	int ns = 100; // sample count
+
 	// 存储图像数据
 	unsigned char* data = new unsigned char[nx * ny * channels];
 
-	// camera相关
-	vec3 lower_left_corner(-2.0, -1.0, -1.0); // 左下角
-	vec3 horizontal(4.0, 0.0, 0.0); // 横轴
-	vec3 vertical(0.0, 2.0, 0.0); // 竖轴
-	vec3 origin(0.0, 0.0, 0.0); // eye
+
+	hittable_list world;
+	world.add(make_shared<sphere>(point3(0, 0, -1), 0.5));
+	world.add(make_shared<sphere>(point3(0, -100.5, -1), 100));
+
+	camera cam;
 
 	// 循环遍历图像nx*ny中的每个像素
 	for (int j = ny - 1; j >= 0; j--) {
 		for (int i = 0; i < nx; i++) {
-			// 确定 ray r
-			float u = float(i) / float(nx);
-			float v = float(j) / float(ny);
-			ray r(origin, lower_left_corner + u * horizontal + v * vertical - origin);
-
-			// 计算 ray r 返回的颜色
-			vec3 color = ray_color(r);
-
+			vec3 col(0, 0, 0);
+			// 采样 ns 次
+			for (int k = 0; k < ns; k++) {
+				float u = (i + random_double()) / float(nx);
+				float v = (j + random_double()) / float(ny);
+				// 确定 ray r
+				ray r = cam.get_ray(u, v);
+				// 累加 ray r 射入场景 world 后，返回的颜色
+				col += ray_color(r, world);
+			}
+			col /= float(ns);
+			// gammar 矫正
+			col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2]));
 			// 写入图像数据 data[y*width*channels + x*channels + index]
-			data[(ny - j - 1) * nx * 3 + 3 * i + 0] = int(255.99 * color[0]);
-			data[(ny - j - 1) * nx * 3 + 3 * i + 1] = int(255.99 * color[1]);
-			data[(ny - j - 1) * nx * 3 + 3 * i + 2] = int(255.99 * color[2]);
+			data[(ny - j - 1) * nx * 3 + 3 * i + 0] = int(255.99 * col[0]);
+			data[(ny - j - 1) * nx * 3 + 3 * i + 1] = int(255.99 * col[1]);
+			data[(ny - j - 1) * nx * 3 + 3 * i + 2] = int(255.99 * col[2]);
 		}
-		// 计算渲染进度
+		// print渲染进度
 		std::cout << (ny - j) / float(ny) * 100.0f << "%\n";
 	}
 	// 写出png图片
-	stbi_write_png("ch00&01.png", nx, ny, channels, data, 0);
+	stbi_write_png("ch07.png", nx, ny, channels, data, 0);
 
 	std::cout << "Completed.\n";
 	//system("PAUSE");
+	return 0;
 }
