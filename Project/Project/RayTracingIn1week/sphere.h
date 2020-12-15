@@ -1,32 +1,17 @@
 ﻿#pragma once
-
 #include "hittable.h"
-#include "vec3.h"
 
-class sphere : public hittable
-{
+class sphere :public hitable {
 public:
-	sphere();
-	sphere(point3 cen, double r) : center(cen), radius(r) {};
-
-	virtual bool hit(
-		const ray& r, double t_min, double t_max, hit_record& rec) const override;
-
-public:
-	point3 center;
-	double radius;
+	sphere() {}
+	sphere(vec3 cen, float r, material* m) { center = cen; radius = r; mat_ptr = m; }
+	virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const;
+	vec3 center;
+	float radius;
+	material* mat_ptr;
 };
 
-/*
-(t^2)b·b + 2tb·(a - c) +  (a - c)· (a - c) - r^2 = 0 , t = unknown
-Simplifying if b = 2h
--b +- √ (b^2 - 4 ac) / 2a -> -h +- √(h^2 - ac) / a
-
-Intersection
--h +-√ (h^2 -ac) / a
-*/
-bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) const
-{
+bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const {
 	vec3 A_C = r.origin() - center;
 	vec3 B = r.direction();
 	float a = dot(B, B);
@@ -37,15 +22,19 @@ bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) cons
 		float temp = (-b - sqrt(discriminant)) / a;
 		if (temp < t_max && temp > t_min) {
 			rec.t = temp;
-			rec.p = r.at(rec.t);
+			rec.p = r.point_at_parameter(rec.t);
 			rec.normal = (rec.p - center) / radius;
+			rec.mat_ptr = mat_ptr;
 			return true;
 		}
 		temp = (-b + sqrt(discriminant)) / a;
 		if (temp < t_max && temp > t_min) {
 			rec.t = temp;
-			rec.p = r.at(rec.t);
+			rec.p = r.point_at_parameter(rec.t);
 			rec.normal = (rec.p - center) / radius;
+			vec3 outward_normal = (rec.p - center) / radius;
+			rec.set_face_normal(r, outward_normal);
+			rec.mat_ptr = mat_ptr;
 			return true;
 		}
 	}

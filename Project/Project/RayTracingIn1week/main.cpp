@@ -10,23 +10,7 @@
 #include "hittable_list.h"
 #include "sphere.h"
 #include "camera.h"
-
-color ray_color(const ray& r, const hittable& world)
-{
-	hit_record rec;
-	if (world.hit(r, 0.001, infinity, rec)) {
-		// 若 ray 交到场景中 diffuse 物体，trace 新的 ray
-		vec3 target = rec.p + rec.normal + random_in_unit_sphere();
-		// pick random point S inside this unit radius and send a ray from the hit point P to random point S
-		return 0.5 * ray_color(ray(rec.p, target - rec.p), world);
-	}
-	else {
-		// 否则，计算背景色并返回
-		vec3 unit_direction = unit_vector(r.direction());
-		float t = (0.5 * unit_direction.y() + 1.0);
-		return (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
-	}
-}
+#include "material.h"
 
 int main() {
 	// width, height, channels of image
@@ -35,14 +19,21 @@ int main() {
 	int ny = static_cast<int>(nx / aspect_ratio);
 	int channels = 3;
 	int ns = 100; // sample count
+	const int max_depth = 50;
 
 	// 存储图像数据
 	unsigned char* data = new unsigned char[nx * ny * channels];
 
 
-	hittable_list world;
-	world.add(make_shared<sphere>(point3(0, 0, -1), 0.5));
-	world.add(make_shared<sphere>(point3(0, -100.5, -1), 100));
+	// 场景相关
+	hitable* list[4];
+	list[0] = new sphere(vec3(0, 0, -1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3)));
+	list[1] = new sphere(vec3(0, -100.5, -1), 100, new lambertian(vec3(0.1, 0.2, 0.5)));
+	list[2] = new sphere(vec3(1, 0, -1), 0.5, new dielectric(1.5));
+	list[3] = new sphere(vec3(-1, 0, -1), 0.5, new metal(vec3(0.8, 0.8, 0.8), 0.0));
+	hitable* world = new hitable_list(list, 4);
+	//world.add(make_shared<sphere>(point3(0, 0, -1), 0.5));
+	//world.add(make_shared<sphere>(point3(0, -100.5, -1), 100));
 
 	camera cam;
 
@@ -57,7 +48,7 @@ int main() {
 				// 确定 ray r
 				ray r = cam.get_ray(u, v);
 				// 累加 ray r 射入场景 world 后，返回的颜色
-				col += ray_color(r, world);
+				col += color_ray(r, world, 0);
 			}
 			col /= float(ns);
 			// gammar 矫正
