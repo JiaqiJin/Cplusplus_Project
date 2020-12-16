@@ -12,30 +12,68 @@
 #include "camera.h"
 #include "material.h"
 
+hitable* random_scene()
+{
+	int n = 500;
+	hitable** list = new hitable * [n + 1];
+	list[0] = new sphere(vec3(0.0f, -1000.0f, 0.0f), 1000.0f, new lambertian(vec3(0.5f, 0.5f, 0.5f)));
+	int i = 1;
+	for (int a = -11; a < 11; a++)
+	{
+		for (int b = -11; b < 11; b++)
+		{
+			auto choose_mat = random_double();
+			vec3 center(a + 0.9 * random_double(), 0.2, b + 0.9 * random_double());
+			if ((center - point3(4, 0.2, 0)).length() > 0.9)
+			{
+				if (choose_mat < 0.8f)
+				{
+					vec3 albedo = vec3::random() * vec3::random();
+					list[i++] = new sphere(center, 0.2f, new lambertian(albedo));
+				}
+				else if (choose_mat < 0.95f)
+				{
+					auto albedo = vec3::random(0.5, 1);
+					auto fuzz = random_double(0, 0.5);
+					list[i++] = new sphere(center, 0.2f, new metal(albedo, fuzz));
+				}
+				else
+				{
+					list[i++] = new sphere(center, 0.2f, new dielectric(1.5f));
+				}
+			}
+		}
+	}
+	list[i++] = new sphere(vec3(0.0f, 1.0f, 0.0f), 1.0f, new dielectric(1.5f));
+	list[i++] = new sphere(vec3(-4.0f, 1.0f, 0.0f), 1.0f, new lambertian(vec3(0.4f, 0.2f, 0.1f)));
+	list[i++] = new sphere(vec3(4.0f, 1.0f, 0.0f), 1.0f, new metal(vec3(0.7f, 0.6f, 0.5f), 0.0f));
+
+	return new hitable_list(list, i);
+}
+
 int main() {
 	// width, height, channels of image
-	const auto aspect_ratio = 16.0 / 9.0;
-	int nx = 400; // width
+	const auto aspect_ratio = 3.0 / 2.0;
+	int nx = 1200; // width
 	int ny = static_cast<int>(nx / aspect_ratio);
 	int channels = 3;
 	int ns = 100; // sample count
 	const int max_depth = 50;
+	auto aperture = 0.1;
+	point3 lookfrom(13, 2, 3);
+	point3 lookat(0, 0, 0);
+	auto dist_to_focus = 10.0;
 
 	// 存储图像数据
 	unsigned char* data = new unsigned char[nx * ny * channels];
 
 
 	// 场景相关
-	hitable* list[4];
-	list[0] = new sphere(vec3(0, 0, -1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3)));
-	list[1] = new sphere(vec3(0, -100.5, -1), 100, new lambertian(vec3(0.1, 0.2, 0.5)));
-	list[2] = new sphere(vec3(1, 0, -1), 0.5, new dielectric(1.5));
-	list[3] = new sphere(vec3(-1, 0, -1), 0.5, new metal(vec3(0.8, 0.8, 0.8), 0.0));
-	hitable* world = new hitable_list(list, 4);
+	hitable* wordl = random_scene();
 	//world.add(make_shared<sphere>(point3(0, 0, -1), 0.5));
 	//world.add(make_shared<sphere>(point3(0, -100.5, -1), 100));
 
-	camera cam;
+	camera cam(lookfrom, lookat, vec3(0, 1, 0), 20, float(nx) / float(ny), aperture, dist_to_focus);
 
 	// 循环遍历图像nx*ny中的每个像素
 	for (int j = ny - 1; j >= 0; j--) {
@@ -48,7 +86,7 @@ int main() {
 				// 确定 ray r
 				ray r = cam.get_ray(u, v);
 				// 累加 ray r 射入场景 world 后，返回的颜色
-				col += color_ray(r, world, 0);
+				col += color_ray(r, wordl, 0);
 			}
 			col /= float(ns);
 			// gammar 矫正
