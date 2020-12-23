@@ -34,11 +34,14 @@ public:
 
 private:
     static const UINT FrameCount = 2;
+    static const UINT TextureWidth = 256;
+    static const UINT TextureHeight = 256;
+    static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
     struct Vertex
     {
         XMFLOAT3 position;
-        XMFLOAT4 color;
+        XMFLOAT2 uv;
     };
 
     struct SceneConstantBuffer
@@ -58,6 +61,7 @@ private:
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+    ComPtr<ID3D12DescriptorHeap> m_srvHeap;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -68,6 +72,7 @@ private:
     ComPtr<ID3D12Resource> m_constantBuffer;
     SceneConstantBuffer m_constantBufferData;
     UINT8* m_pCbvDataBegin;
+    ComPtr<ID3D12Resource> m_texture;
 
     // Synchronization objects.
     UINT m_frameIndex;
@@ -79,4 +84,10 @@ private:
     void LoadAssets();
     void PopulateCommandList();
     void WaitForPreviousFrame();
+    std::vector<UINT8> GenerateTextureData();
 };
+
+/*
+  vertexShader = LoadBinary(L"HLSL\\VertexShader.cso");
+  pixelShader = LoadBinary(L"HLSL\\PixelShader.cso");
+*/
